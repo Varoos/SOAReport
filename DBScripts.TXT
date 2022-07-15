@@ -1,0 +1,912 @@
+USE [Focus80P0]
+GO
+/****** Object:  StoredProcedure [dbo].[pCore_CommonSp]    Script Date: 20/06/2022 3:16:55 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+        -- =============================================
+        -- Author:		 Rosmin
+        -- Create date: 13 Oct 2021
+        -- Description: <Common SP for all purpose>
+        -- =============================================
+		--exec [dbo].[pCore_CommonSp] @Operation = getReportData,@p1=164,@p3 ='2021-11-14'
+    ALTER Proc [dbo].[pCore_CommonSp]
+	@Operation varchar(200) =null,
+	@p1 int = null,
+	@p2 varchar(200)=null
+    as
+    begin
+
+	if(@Operation = 'GetTenants')
+	begin
+	select sName,sCode,iMasterId from mCore_Tenant where iMasterId<>0 order by sName
+	end
+	else if(@Operation = 'GetTcNo_BY_TenantID')
+	begin
+		select mCore_TCNo.sName,mCore_TCNo.sCode,mCore_TCNo.iMasterId from mCore_TCNo
+		inner join muCore_TCNo on mCore_TCNo.iMasterId = muCore_TCNo.iMasterId
+		where muCore_TCNo.Tenant = @p1 and  iStatus=0
+	end
+	else if(@Operation = 'Get_TenancyContract_Details')
+	begin
+		select *, convert(varchar(10), cast(dbo.IntToDate(StartDate) as date), 103) StartDate2, convert(varchar(10), cast(dbo.IntToDate(EndDate) as date), 103) EndDate2, case when TerminationDate = 0 then '' else  convert(varchar(10), cast(dbo.IntToDate(TerminationDate) as date), 103)  end TerminationDate2 from  vrCore_TCNo 
+		where vrCore_TCNo.iMasterId = @p1
+	end
+	else if(@Operation = 'SeacrhTenants')
+	begin
+	--select sName,sCode,iMasterId from mCore_Tenant where iMasterId<>0  and sName like ''+@p2+'%' order by sName
+	select sName+' - ('+sCode+')' sName,iMasterId from mCore_Tenant where iMasterId<>0  and sName like ''+@p2+'%' order by sName
+	end
+	else if(@Operation = 'SearchProperty')
+	begin
+	select distinct p.sName names, p.sName+' - ('+p.sCode+')' sName,p.iMasterId from mCore_PropertyMaster  p
+	left join muCore_TCNo c on c.Property = p.iMasterId
+	inner join mCore_TCNo n on c.iMasterId = n.iMasterId and n.iStatus = 0
+	left join mCore_Tenant t on t.iMasterId = c.Tenant
+	where p.iMasterId<>0  and p.sName like '%'+@p2+'%' 
+	and (t.iMasterId = @p1 or @p1 =0) 
+	order by p.sName
+	end
+	else if(@Operation = 'SearchAccount')
+	begin
+	select top (100) p.sName+' - ('+p.sCode+')' sName,p.iMasterId from mCore_Account  p
+	where p.iMasterId<>0  and p.sName like '%'+@p2+'%' and iStatus = 0
+	order by p.sName
+	end
+	else if(@Operation = 'SearchTenants2')
+	begin
+	select distinct t.sName names, t.sName+' - ('+t.sCode+')' sName,t.iMasterId from  mCore_Tenant t
+	left join muCore_TCNo c on c.Tenant = t.iMasterId
+	inner join mCore_TCNo n on c.iMasterId = n.iMasterId and n.iStatus = 0
+	left join mCore_PropertyMaster p  on p.iMasterId = c.Property
+	where t.iMasterId<>0  and t.sName like '%'+@p2+'%' 
+	and (p.iMasterId = @p1 or @p1 =0) 
+	order by t.sName
+	end
+	else if(@Operation = 'getPropertyGrp')
+	begin
+	select sName+' - ('+sCode+')' sName,iMasterId from mCore_PropertyGroup where iMasterId<>0   order by sName
+	end
+	else if(@Operation = 'getProperty')
+	begin
+	select sName+' - ('+sCode+')' sName,m.iMasterId,mu.PropertyGroup from mCore_PropertyMaster m
+	join muCore_PropertyMaster  mu on mu.iMasterId = m.iMasterId where m.iMasterId<>0  and (mu.PropertyGroup = @p1 or @p1 is null)  order by sName
+	end
+	else if(@Operation = 'getUnitMaster')
+	begin
+	select sName+' - ('+sCode+')' sName,m.iMasterId,mu.Property,mu.UsageType,mu.UnitType from mCore_UnitMaster m
+	join muCore_UnitMaster  mu on mu.iMasterId = m.iMasterId where m.iMasterId<>0 and istatus <> 5 order by sName
+	end
+	else if(@Operation = 'getUnitType')
+	begin
+	select sName+' - ('+sCode+')' sName,m.iMasterId from mCore_UnitType m where m.iMasterId<>0  order by sName
+	end
+	else if(@Operation = 'getUsage')
+	begin
+	select sName+' - ('+sCode+')' sName,m.iMasterId from mCore_UsageType m 
+	where m.iMasterId<>0  order by sName
+	end
+	else if(@Operation = 'getTC')
+	begin
+	select sName+' - ('+sCode+')' sName,m.iMasterId,mu.UnitMaster from mCore_TCNo m join muCore_TCNo mu on m.iMasterId = mu.iMasterId where m.iMasterId<>0  order by sName
+	end
+    end
+           
+
+
+
+
+
+alter proc dbo.OccupanyReport
+
+@PropertyGrps varchar(max),
+@Proeprtys varchar(max),
+@UnitIds varchar(max),
+@TCNo varchar(max),
+@UnitType varchar(max),
+@Usage varchar(max),
+@Sqft decimal(18,2),
+@SqftTo decimal(18,2),
+@SDate varchar(100),
+@EDate varchar(100)
+as
+begin
+declare @Startdate int = (select dbo.DateToInt(@SDate))
+declare @Enddate int = (select dbo.DateToInt(@EDate))
+
+declare @TblUnits table (UnitsId int not null)
+if(@UnitIds <> '')
+begin
+insert into @TblUnits (UnitsId ) (select items from dbo.CSVToTable(@UnitIds,','))
+end
+else
+begin
+insert into @TblUnits (UnitsId ) (select iMasterId from mCore_UnitMaster m where m.iMasterId<>0)
+end
+DROP TABLE IF EXISTS #VaccDays
+
+select TerminationDate,StartDate,(vaccantdays) + 1 vaccantdays,UnitMaster into #VaccDays from 
+(
+select b.TerminationDate,x.StartDate,ISNULL(DATEDIFF(d, dbo.IntToDate(b.TerminationDate), dbo.IntToDate(isnull(x.StartDate,@Enddate))), 0) vaccantdays,b.UnitMaster from
+(
+select *,ROW_NUMBER() over(partition by UnitMaster order by StartDate )rno from 
+(
+select 0 StartDate,@Startdate TerminationDate,0 iMasterId,UnitsId UnitMaster from @TblUnits
+union all
+select (tc.StartDate)StartDate, case when (tc.TerminationDate = 0) then @Enddate else tc.TerminationDate end TerminationDate,tc.iMasterId,tc.UnitMaster from mCore_UnitMaster u
+join muCore_TCNo tc on tc.UnitMaster = u.iMasterId and tc.UnitMaster in (select UnitsId from @TblUnits)
+where (tc. StartDate between @Startdate and @Enddate) or ((tc.TerminationDate between @Startdate and @Enddate ) or tc.TerminationDate =0) 
+union all
+select @Enddate StartDate,0 TerminationDate,0 iMasterId,UnitsId UnitMaster from @TblUnits
+)a
+)b
+outer apply
+	(
+		select * from(
+	    select *,(ROW_NUMBER() over(partition by UnitMaster order by StartDate )-1)rno from 
+		(
+		select 0 StartDate,@Startdate TerminationDate,0 iMasterId,UnitsId UnitMaster from @TblUnits
+		union all
+		select (tc.StartDate)StartDate, case when (tc.TerminationDate = 0) then @Enddate else tc.TerminationDate end TerminationDate,tc.iMasterId,tc.UnitMaster from mCore_UnitMaster u
+		join muCore_TCNo tc on tc.UnitMaster = u.iMasterId and tc.UnitMaster in (select UnitsId from @TblUnits)
+		where (tc. StartDate between @Startdate and @Enddate) or ((tc.TerminationDate between @Startdate and @Enddate ) or tc.TerminationDate =0) 
+		union all
+		select @Enddate StartDate,0 TerminationDate,0 iMasterId,UnitsId UnitMaster from @TblUnits
+		)a
+		)a1
+		where b.rno=a1.rno and b.UnitMaster = a1.UnitMaster   
+	)x
+)y
+where vaccantdays>0 and (TerminationDate <> 0 and StartDate is not null)
+
+select * from
+(
+select  m.sName UnitName,m.sCode UnitCode,ust.sName UnitTypeName, ust.sCode UnitTypeCode,pg.sName PGname, pg.sCode PGcode,p.sName PName, p.sCode PCode,'' TCName, '' TCCode,ug.sName UsageName,ug.sCode UsageCode,mu.Area,0 ContractValue,m1.TerminationDate StartDate,m1.StartDate TerminationDate,-1 iMasterId,'Not Leased' Leasestatus,isnull(mu.AnnualRent,0) AnnualRent,pg.iMasterId pg,p.iMasterId prop,-1 tc,ust.iMasterId utype,ug.iMasterId usage,0 AmDays,0 AmAmt,0 rentperday,0 rentpersqft,m1.vaccantdays,((isnull(mu.AnnualRent,0)/365)*m1.vaccantdays) rentloss, 0 UnAm_rent,ISNULL(DATEDIFF(d, @SDate, @EDate), 0) AccPrdDays ,convert(varchar(10), cast( dbo.IntToDate(m1.TerminationDate) as date), 103) Am_start,convert(varchar(10), cast( dbo.IntToDate(m1.StartDate) as date), 103) Am_End,convert(varchar(10), cast( @SDate as date), 103) Fromdate,convert(varchar(10), cast( @EDate as date), 103) Enddate
+from #VaccDays m1
+join mCore_UnitMaster m on m1.UnitMaster = m.iMasterId and  m.iMasterId <>0
+join muCore_UnitMaster mu on m.iMasterId = mu.iMasterId
+join mCore_PropertyMaster p on mu.Property = p.iMasterId
+join muCore_PropertyMaster pmu on p.iMasterId = pmu.iMasterId and pmu.PropertyGroup <>0
+join mCore_PropertyGroup pg on pg.iMasterId = pmu.PropertyGroup
+left join mCore_UnitSubType ust on ust.iMasterId = mu.UnitSubType
+left join mCore_UsageType ug on ug.iMasterId = mu.UsageType
+
+ union all
+
+select *,rentperday/Area rentpersqft,0 vaccantdays,0 rentloss, (ContractValue - AmAMT) UnAm_rent,ISNULL(DATEDIFF(d, @SDate, @EDate), 0) AccPrdDays,convert(varchar(10), cast(dbo.IntToDate(StartDate) as date), 103)  Am_start, convert(varchar(10), cast(dbo.IntToDate(TerminationDate) as date), 103) Am_End,convert(varchar(10), cast( @SDate as date), 103) Fromdate,convert(varchar(10), cast( @EDate as date), 103) Enddate from
+(
+select *,AmAMT / AmDays rentperday from
+(
+select *,(isnull(ContractValue,0) /365)*AmDays AmAMT from
+(
+select a.*,DATEDIFF(d,dbo.IntToDate(a.StartDate) , dbo.IntToDate(a.TerminationDate))+1  AmDays from 
+(
+select m.sName UnitName,m.sCode UnitCode,ust.sName UnitTypeName, ust.sCode UnitTypeCode,pg.sName PGname, pg.sCode PGcode,p.sName PName, p.sCode PCode,tc.sName TCName, tc.sCode TCCode,ug.sName UsageName,ug.sCode UsageCode,mu.Area,isnull(tcmu.AnnualRent,0) ContractValue,tcmu.StartDate,case when tcmu.TerminationDate = 0 then @Enddate else  tcmu.TerminationDate end TerminationDate,tcmu.iMasterId, 'Leased'  Leasestatus,isnull(mu.AnnualRent,0) AnnualRent,pg.iMasterId pg,p.iMasterId prop,tc.iMasterId tc,ust.iMasterId utype,ug.iMasterId usage  from mCore_UnitMaster m
+join muCore_UnitMaster mu on m.iMasterId = mu.iMasterId
+join mCore_PropertyMaster p on mu.Property = p.iMasterId
+join muCore_PropertyMaster pmu on p.iMasterId = pmu.iMasterId and pmu.PropertyGroup <>0
+join mCore_PropertyGroup pg on pg.iMasterId = pmu.PropertyGroup
+join muCore_TCNo tcmu on tcmu.UnitMaster = m.iMasterId
+join mCore_TCNo tc on tc.iMasterId = tcmu.iMasterId
+join mCore_UnitSubType ust on ust.iMasterId = mu.UnitSubType
+join mCore_UsageType ug on ug.iMasterId = mu.UsageType
+where mu.Area>0 and m.iMasterId<>0 and tcmu.UnitMaster in (select * from @TblUnits)
+)a
+)b
+)c
+)d
+)main
+where (pg in (select items from dbo.CSVToTable(@PropertyGrps,',') )or @PropertyGrps='')
+and (prop in (select items from dbo.CSVToTable(@Proeprtys,',')) or @Proeprtys ='')
+and (tc in (select items from dbo.CSVToTable(@TCNo,',')) or @TCNo = '')
+and (utype in (select items from dbo.CSVToTable(@UnitType,',')) or @UnitType ='')
+and (usage in (select items from dbo.CSVToTable(@Usage,',')) or @Usage='')
+and ((Area between @Sqft and @SqftTo) or(@Sqft = 0 and @SqftTo =0) or(@Sqft = 0 or @SqftTo =0))
+order by UnitCode,TerminationDate,iMasterId
+
+end
+
+
+
+
+
+
+
+
+
+
+USE [Focus80P0]
+GO
+/****** Object:  StoredProcedure [dbo].[Core_SOA_Report_Tenant]    Script Date: 21/06/2022 5:12:44 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+--exec Core_SOA_Report_Tenant @TCNo='CON-20210001',@ReportDate='2022-01-02' dd/mm/yyyy
+ALTER PROCEDURE [dbo].[Core_SOA_Report_Tenant]
+    @TCNo				varchar(500),
+	@ReportDate			varchar(500)
+AS
+BEGIN
+	DROP TABLE IF EXISTS #MainTableSOA
+	declare @intReportDate int = dbo.DateToInt(@ReportDate);
+	declare @StartDate int = (select iAccountingDate from tCore_Company_Details where iCompanyId = 1)
+	SELECT Rank() over(ORDER BY InnerTable.iMasterId,(CASE WHEN (tCore_Header_0.iVoucherType) IN(7168,5888) THEN tCore_Data_0.iDueDate ELSE tCore_Header_0.iDate END)) rownum,tCore_Data_0.iBodyId[iHeaderId], InnerTable.iMasterId[iMasterId], CASE WHEN (tCore_Header_0.iVoucherType) IN(7168,5888) THEN tCore_Data_0.iDueDate ELSE tCore_Header_0.iDate END[iDate],
+	                    cCore_Vouchers_0.sAbbr+' : '+tCore_Header_0.sVoucherNo[Voucher], InnerTable.Account[Account],Debit, Credit ,
+						tCore_Header_0.iVoucherType , tCore_Data_0.iDueDate iDueDate,vCore_TranHeaderData_0.sChequeNo sChequeNo ,vrCore_UnitMaster.sName UnitName ,vrCore_PropertyMaster.sName PropertyName ,vCore_TranData_0.sRemarks Remarks ,tCore_Header_0.iHeaderId MainHeaderId,tCore_Data_0.bPdc
+						into #MainTableSOA
+						FROM (
+                            SELECT tCore_Data_0.iBodyId, mCore_Account.sName[Account], iCode[iMasterId],mCore_Account.iMasterId[iBookNo],
+                            CASE WHEN mAmount1 < 0 THEN mAmount1 ELSE 0 END Debit, 
+                            CASE WHEN mAmount1 > 0 THEN mAmount1 ELSE 0 END Credit
+                            FROM tCore_Data_0
+                            JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+                            JOIN mCore_Account ON tCore_Data_0.iBookNo = mCore_Account.iMasterId
+                            LEFT JOIN tCore_Data_FX_0 ON tCore_Data_FX_0.iBodyId = tCore_Data_0.iBodyId
+                             WHERE 
+							  iCode = 2484 AND tCore_Header_0.iVoucherClass <> 256
+                            UNION ALL
+                            SELECT tCore_Data_0.iBodyId, mCore_Account.sName[Account], iBookNo[iMasterId],mCore_Account.iMasterId[iBookNo],
+                            CASE WHEN mAmount2 < 0 THEN mAmount2 ELSE 0 END Debit, 
+                            CASE WHEN mAmount2 > 0 THEN mAmount2 ELSE 0 END Credit
+                            FROM tCore_Data_0 
+                            JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+                            JOIN mCore_Account ON tCore_Data_0.iCode = mCore_Account.iMasterId
+                            LEFT JOIN tCore_Data_FX_0 ON tCore_Data_FX_0.iBodyId = tCore_Data_0.iBodyId
+                             WHERE 
+							  iBookNo = 2484 AND tCore_Header_0.iVoucherClass <> 256
+                        )InnerTable
+                        JOIN tCore_Data_0 ON tCore_Data_0.iBodyId = InnerTable.iBodyId  
+                        JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+                        LEFT JOIN tCore_Data_FX_0 ON tCore_Data_FX_0.iBodyId = InnerTable.iBodyId
+                        JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType=tCore_Header_0.iVoucherType
+                        JOIN vrCore_Account BookNo ON InnerTable.iBookNo = BookNo.iMasterId AND BookNo.iTreeId = 0
+                        JOIN vrCore_Account Code ON InnerTable.iMasterId = Code.iMasterId AND Code.iTreeId = 0
+                        JOIN mCore_Currency WITH (READUNCOMMITTED) ON mCore_Currency.iCurrencyId = tCore_Data_0.iCurrencyId  LEFT JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_TCNo ON vrCore_TCNo.iMasterId = tCore_Data_Tags_0.iTag3007 AND vrCore_TCNo.iTreeId=0 LEFT JOIN 
+                        (
+                             SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData4608_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData4864_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData4865_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData5120_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData5888_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData7168_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData8706_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData8707_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData8708_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0
+                        )vCore_TranHeaderData_0 ON vCore_TranHeaderData_0.iHeaderId = tCore_Header_0.iHeaderId LEFT JOIN vrCore_UnitMaster ON vrCore_UnitMaster.iMasterId = tCore_Data_Tags_0.iTag3002 AND vrCore_UnitMaster.iTreeId=0 LEFT JOIN vrCore_PropertyMaster  ON vrCore_PropertyMaster.iMasterId = tCore_Data_0.iFaTag AND vrCore_PropertyMaster.iTreeId = 0 LEFT JOIN 
+                        (
+                             SELECT body.iBodyId,body.sRemarks FROM tCore_Data769_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data770_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data3328_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0  UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data3584_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data4096_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data4608_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data4864_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data4865_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data5120_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data5888_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data7168_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0 UNION ALL SELECT body.iBodyId,body.sRemarks FROM tCore_Data8705_0 body WITH (READUNCOMMITTED)  WHERE LEN(body.sRemarks) > 0
+                        )vCore_TranData_0 ON vCore_TranData_0.iBodyId = tCore_Data_0.iBodyId WHERE (tCore_Data_0.bUpdateFA = 1 OR (tCore_Header_0.iVoucherClass) = 7168 OR (tCore_Header_0.iVoucherClass) = 5888)  AND tCore_Data_0.bSuspendUpdateFA = 0  AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus < 2 
+						AND InnerTable.iMasterId = 2484  
+						AND (tCore_Header_0.iDate BETWEEN 0 AND @intReportDate) 
+  AND (Debit < 0 OR Credit > 0 )  AND    LOWER( vrCore_TCNo.sCode ) LIKE LOWER(@TCNo)   ORDER BY InnerTable.iMasterId,(CASE WHEN (tCore_Header_0.iVoucherType) IN(7168,5888) THEN tCore_Data_0.iDueDate ELSE tCore_Header_0.iDate END)
+   --exec Core_SOA_Report_Tenant @TCNo = N'%CON-20210001%', @ReportDate='2022-01-27'
+--select convert(varchar(10), cast(a1.iDate as date), 105) Date,a1.Voucher,a1.Account,ABS(a1.Debit) Debit,abs(a1.Credit) Credit,abs(sum(amt)over(Partition By accountid Order By rownum)) as Balance from
+--(
+--select *,ROW_NUMBER() over (Partition By accountid Order By orderid) rownum from
+--(
+--select d.mAmount1 amt,d.iCode accountid, h.iVoucherType,1 as orderid,cCore_Vouchers_0.sAbbr+' : '+h.sVoucherNo[Voucher], dbo.IntToDate(h.iDate) iDate ,
+--CASE WHEN mAmount1 < 0 THEN mAmount1 ELSE 0 END Debit,   CASE WHEN mAmount1 > 0 THEN mAmount1 ELSE 0 END Credit,a.sName Account
+--from tCore_Header_0 h
+--inner join tCore_Data_0 d on h.iHeaderId = d.iHeaderId
+--JOIN mCore_Account a ON d.icode = a.iMasterId
+-- JOIN cCore_Vouchers_0 ON cCore_Vouchers_0.iVoucherType=h.iVoucherType
+--where h.iVoucherType=256 and d.iCode in (select distinct iMasterId from #MainTableSOA)
+--union all
+--select case when Debit = 0 then Credit else Debit end amt, iMasterId accountid ,iVoucherType,2 orderid,Voucher,dbo.IntToDate(iDate) iDate,Debit,Credit,Account
+--from #MainTableSOA m
+--)a
+--)a1
+--order by accountid,iDate
+   --exec Core_SOA_Report_Tenant @TCNo = N'%WARQA20220002%', @ReportDate='2022-02-25'
+      select convert(varchar(10), cast(a1.iDate as date), 103) Date,a1.Voucher,a1.Account,ABS(a1.Debit) Debit,abs(a1.Credit) Credit,abs(sum(amt)over(Partition By accountid Order By rownum)) as Balance ,tc.sName TCNo,tc.Tenant,tc.Property,tc.UnitMaster,convert(varchar(10), cast(dbo.IntToDate(tc.StartDate)as date), 103) StartDate,convert(varchar(10), cast(dbo.IntToDate(tc.EndDate)as date), 103) EndDate,case when tc.TerminationDate = 0 then '' else convert(varchar(10), cast(dbo.IntToDate(tc.TerminationDate)as date), 103) end TerminationDate,tc.AnnualRent,convert(varchar(10), cast(@ReportDate as date), 103) ReportDate,iVoucherType,(case when tc.TerminationDate = 0 then ((DATEDIFF(day,cast(dbo.IntToDate(tc.StartDate) as date), cast(GETDATE() as date)))-1) else ((DATEDIFF(day,cast(dbo.IntToDate(tc.StartDate)  as date),cast(dbo.IntToDate(tc.TerminationDate)as date)))-1) end) No_ofdays_stayed,bpdc,case when (iVoucherType = 5888 and bpdc=0) then  a1.Voucher else '0' end PDCNo, isnull(a1.sChequeNo,'0') sChequeNo,abs(sum(case when(iVoucherType = 5888 and bpdc=0) then 1 else 0 end)over(Partition By tc.sName Order By tc.sName)) as pdccount
+	  from
+(
+select *,ROW_NUMBER() over (Partition By accountid Order By iDate,iDate,iVoucherType,Voucher) rownum from
+(
+select case when Debit = 0 then Credit else Debit end amt, iMasterId accountid ,iVoucherType,Voucher,dbo.IntToDate(iDate) iDate,Debit,Credit,Account,Remarks,sChequeNo,MainHeaderId,bPdc
+from #MainTableSOA m
+)a
+)a1
+inner join vrCore_TCNo tc  on LOWER( tc.sCode ) LIKE LOWER(@TCNo) 
+left join  tCore_HeaderData5888_0 pdc on pdc.iHeaderId = a1.MainHeaderId --and pdc.PDCNo is not null
+order by iDate,iVoucherType,Voucher
+END
+
+
+
+
+
+
+
+
+
+
+USE [Focus80P0]
+GO
+/****** Object:  StoredProcedure [dbo].[Tenant_Ageing_report]    Script Date: 21/06/2022 5:13:43 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+--exec Tenant_Ageing_report @Property=0,@Tenant=0,@Account=2484 ,@ReportDate='2023-10-08'
+ALTER PROCEDURE [dbo].[Tenant_Ageing_report]
+    @Property			int,
+	@Tenant				int,
+	@Account			int,
+	@ReportDate			varchar(50)
+AS
+BEGIN
+    declare @intReportDate int = dbo.DateToInt(@ReportDate);      
+	drop table if exists #AgeingTbl
+
+
+	SELECT tCore_Data_0.iBodyId,tCore_Header_0.sVoucherNo[sVoucherNo], tCore_Header_0.iVoucherType,tCore_Header_0.iDate,vrCore_TCNo.iMasterId TC_No_Id,
+	Round(CASE WHEN tCore_Refrn_0.iRefType <2 then ParentRef.mAmount else ParentRef.mAmount end,5)[Balance Amount]
+	into #AgeingTbl
+    FROM tCore_Refrn_0 WITH (READUNCOMMITTED)
+    JOIN 
+    (
+        SELECT  iRef, tCore_Refrn_0.iCode  ,RefJoin.iBodyId, iRefTypeId   ,
+        SUM(
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   
+        ) [mAmount],
+        SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   ) Else 0 end
+        ) [mWithOutPDCAmount],
+        case max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) when 0 then  max(CASE WHEN iRefType <2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) else max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) end [iDueDate], 
+        case max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) when 0 then  dbo.DateToInt(CONVERT(VARCHAR(12), getdate(), 102)) else max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) end [iDueDateDelay], 
+        max(CASE WHEN iRefType < 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) [iNewRefDueDate], 
+        isnull(sum(CASE WHEN iRefType = 2 THEN 1 ELSE 0 END),1) iCount, 
+		SUM(CASE WHEN iRefType < 2 THEN tCore_Refrn_0.iCurrencyId ELSE 0 END) [iCurrencyId],
+        SUM(CASE WHEN iRefType < 2 THEN iRefType ELSE 0 END) [iRefType],
+        SUM(CASE WHEN iRefType < 2 THEN 
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END  
+        ELSE 0 END) [mInvoiceAmount],
+        SUM(CASE WHEN iRefType = 2 THEN 
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   
+        ELSE 0 END) [mAdjustedAmount],
+        SUM(CASE WHEN iRefType < 2 THEN mAmount ELSE 0 END) [mTInvoiceAmount],
+        SUM(CASE WHEN iRefType = 2 THEN mAmount ELSE 0 END) [mTAdjustedAmount], SUM(mAmount) mTAmount , 
+        SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (mAmount) else 0 end) [mWithOutPDCTAmount],
+		SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168) ) then (mAmount) else 0 end) [mPDCTAmount],
+		SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168) ) then (
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   ) Else 0 end
+        ) [mPDCAmount],
+		SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168)) then (
+            CASE WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+            WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff END   ) Else 0 end
+        ) [mPDCLAmount],
+        SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (
+            CASE WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+            WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff END   ) Else 0 end
+        ) [mWithOutPDCLocalAmount],
+
+		SUM(CASE WHEN iRefType < 2 THEN mLocalAmount ELSE 0 END) [mLInvoiceAmount],SUM(tCore_Refrn_0.mLocalAmount) [mLAmount],sum(Case when tCore_Header_0.fNet =0 then  case when tCore_Refrn_0.iCode=tCore_Data_0.iBookNo then  tCore_Data_0.mAmount2 else tCore_Data_0.mAmount1 end else tCore_Header_0.fNet end) NetAmount
+        FROM tCore_Refrn_0 WITH (READUNCOMMITTED)
+        JOIN tCore_Data_0 ON tCore_Data_0.iBodyId = tCore_Refrn_0.iBodyId
+	    JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+        JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType = tCore_Header_0.iVoucherType
+        JOIN mCore_Currency WITH (READUNCOMMITTED) ON mCore_Currency.iCurrencyId = tCore_Refrn_0.iCurrencyId 
+        LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+
+        JOIN mCore_Account mCore_Account ON mCore_Account.iMasterId = tCore_Refrn_0.iCode 
+        join (Select AllRef.iRef AllRefiRef, max(isnull(NewRef.iBodyId, AllRef.iBodyId))iBodyId,max(isnull(NewRef.iRefType , AllRef.iRefType ))iRefTypeId from tCore_Refrn_0 AllRef  WITH (READUNCOMMITTED)
+		left join (Select iRef, iBodyId,iRefType from tCore_Refrn_0 WITH (READUNCOMMITTED) where iRefType=0
+        ) NewRef on AllRef.iRef=NewRef.iRef
+						
+		group by AllRef.iRef
+		) RefJoin on tCore_Refrn_0.iRef=RefJoin.AllRefiRef
+            LEFT JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_Tenant ON vrCore_Tenant.iMasterId = tCore_Data_Tags_0.iTag3006 AND vrCore_Tenant.iTreeId=0
+        WHERE tCore_Data_0.bSuspendUpdateFA <> 1 AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus <2 
+            AND (((tCore_Header_0.iVoucherClass in(7168 ,5888)) or tCore_Data_0.bUpdateFA=1) )
+        AND ((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end) BETWEEN 0 AND @intReportDate )
+                        
+        GROUP BY iRef, tCore_Refrn_0.iCode  ,RefJoin.iBodyId, iRefTypeId  
+                        
+    )ParentRef 
+    ON  tCore_Refrn_0.iRef = ParentRef.iRef  and tCore_Refrn_0.iCode = ParentRef.iCode  and tCore_Refrn_0.iBodyId= ParentRef.iBodyId  and tCore_Refrn_0.iRefType= ParentRef.iRefTypeId 
+    inner join (Select  ROW_NUMBER() over (Partition by tCore_Refrn_0.iRef order by tCore_Refrn_0.iRef,tCore_Refrn_0.iRefType) sVoucherNoOrder, tCore_Refrn_0.iRef, tCore_Refrn_0.iBodyId, sVoucherNo  sVoucherNoOrder1, Len( sVoucherNo) LensVoucherNoOrder,DateJoin.iDate iDateOrder, iVoucherType iVoucherTypeOrder 
+	from (Select distinct iRef, min(iRefType) iRefType, iBodyId, iCode, min(iDueDate) iDueDate from tCore_Refrn_0 with (ReadUncommitted)
+    group by iRef, iBodyId, iCode ) tCore_Refrn_0  
+					join tCore_Data_0  on tCore_Refrn_0.iBodyId=tCore_Data_0.iBodyId
+					join tCore_Header_0  on tCore_Header_0.iHeaderId= tCore_Data_0.iHeaderId  		
+                    LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+                                    
+                    join (
+									
+                    Select iRef , iDate, tCore_Refrn_0.iDueDate
+					from tCore_Refrn_0 WITH (READUNCOMMITTED)  
+					inner join tCore_Data_0 on tCore_Refrn_0.iBodyId=tCore_Data_0.iBodyId
+					inner join tCore_Header_0 on tCore_Data_0.iHeaderId=tCore_Header_0.iHeaderId
+                    LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+                    inner join mCore_Account mCore_Account on tCore_Refrn_0.iCode=mCore_Account.iMasterId
+					--join #MasterIdTable MasterIdTable on  tCore_Refrn_0.iCode=MasterIdTable.iMasterId
+                                    
+                    where iRefType <2 
+                                    
+                    ) DateJoin on DateJoin.iRef= tCore_Refrn_0.iRef
+	--Where iRefType in(0,1,2) 
+        and (case when tCore_Header_0.iVoucherClass in(5888,7168) then DateJoin.iDueDate else DateJoin.iDate end) BETWEEN 0 AND @intReportDate
+    ) OrderTable on tCore_Refrn_0.iRef=OrderTable.iRef and tCore_Refrn_0.iBodyId=OrderTable.iBodyId
+    JOIN tCore_Data_0 ON tCore_Refrn_0.iBodyId = tCore_Data_0.iBodyId 
+    JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+    JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType = tCore_Header_0.iVoucherType
+    JOIN mCore_Account mCore_Account ON mCore_Account.iMasterId = ParentRef.iCode --AND mCore_Account.iTreeId = 0
+    JOIN mCore_AccountLanguage mCore_AccountLanguage ON mCore_Account.iMasterId = mCore_AccountLanguage.iMasterId AND mCore_AccountLanguage.iLanguageId = 0
+    --join #AccountClubBy mCore_Account_Props on isnull(mCore_Account.iMasterId,0)=mCore_Account_Props.iMasterId
+    JOIN vrCore_Account  Code ON Code.iMasterId = tCore_Data_0.iCode AND Code.iTreeId = 0
+    JOIN vrCore_Account  BookNo ON BookNo.iMasterId = tCore_Data_0.iBookNo AND BookNo.iTreeId = 0
+    JOIN mCore_Currency BaseCurrency  ON BaseCurrency.iCurrencyId = ParentRef.iCurrencyId
+    inner join (Select 0 iARAPTagId, '' sARAPTagName,'' sARAPTagCode ) ARAPTag  on tCore_Refrn_0.iDep = ARAPTag.iARAPTagId
+                   
+        left JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_Tenant ON vrCore_Tenant.iMasterId = tCore_Data_Tags_0.iTag3006 AND vrCore_Tenant.iTreeId=0
+		left join vrCore_TCNo on vrCore_TCNo.iMasterId = tCore_Data_Tags_0.iTag3007 and vrCore_TCNo.iStatus = 0
+					 
+    WHERE tCore_Refrn_0.mAmount<>0 and (tCore_Data_0.bSuspendUpdateFA <> 1 AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus < 2 
+                    
+		and Round(CASE WHEN tCore_Refrn_0.iRefType <2 then ParentRef.mAmount else 0 end,2)<>0  AND (tCore_Header_0.iVoucherClass in(7168, 5888) OR tCore_Data_0.bUpdateFA=1)
+                    
+    and mCore_Account.iMasterId = @Account
+        AND (((tCore_Header_0.iVoucherClass in(7168 ,5888)) or tCore_Data_0.bUpdateFA=1) ) )
+        AND  (tCore_Data_Tags_0.iTag3006 =@Tenant or @Tenant = 0)
+    AND (tCore_Data_0.iFaTag = @Property or @Property=0)
+    AND vrCore_TCNo.iMasterId <>0 and vrCore_TCNo.iMasterId <>31               
+                    
+    AND ((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end) BETWEEN 0 AND @intReportDate )
+	--select * from #AgeingTbl
+	--select * from
+	--(
+	--	select sum([Balance Amount])[Balance Amount], max(rnum)rnum,TC_No_Id from 
+	--	(
+			--select *,sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal, row_number()over (partition by TC_No_Id order by iDate,iBodyId) rnum  from #AgeingTbl
+	--	)b 
+	--	group by TC_No_Id
+	--	having sum([Balance Amount]) <> 0
+	--)c
+	--inner join 
+	--(
+	--	select *,sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal, row_number()over (partition by TC_No_Id order by iDate,iBodyId) rnum  from #AgeingTbl
+	--)d on d.TC_No_Id = c.TC_No_Id and d.rnum = c.rnum and c.[Balance Amount] = d.[Balance Amount]
+
+
+	--select * from
+	--(
+	--	select sum([Balance Amount])[Balance Amount], max(rnum)rnum,TC_No_Id from 
+	--	(
+	--		select *,sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal, row_number()over (partition by TC_No_Id order by iDate,iBodyId) rnum  from #AgeingTbl
+	--	)b 
+	--	group by TC_No_Id
+	--	having sum([Balance Amount]) <> 0
+	--)c
+	--inner join 
+	--(
+	--	select *,sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal, row_number()over (partition by TC_No_Id order by iDate,iBodyId) rnum  from #AgeingTbl
+	--)d on d.TC_No_Id = c.TC_No_Id --and d.rnum = c.rnum and c.[Balance Amount] = d.[Balance Amount]
+
+	--select max(iBodyId) from 
+	--(
+	--	select sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal,iBodyId,TC_No_Id  from #AgeingTbl
+	--)e
+	--where cumbal = 0
+	--group by TC_No_Id
+
+	--select *,sum([Balance Amount]) over (partition by TC_No_Id order by iDate,#AgeingTbl.iBodyId) cumbal, row_number()over (partition by TC_No_Id order by iDate,#AgeingTbl.iBodyId) rnum  
+	--from #AgeingTbl
+	--inner join 
+	--(
+	--	select max(iBodyId) iBodyId from 
+	--	(
+	--		select sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal,iBodyId  from #AgeingTbl
+	--	)e
+	--	where cumbal = 0
+	--)f on f.iBodyId < #AgeingTbl.iBodyId 
+
+	--select *,sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal, row_number()over (partition by TC_No_Id order by iDate,iBodyId) rnum  from #AgeingTbl
+	--exec Tenant_Ageing_report @Property=0,@Tenant=0,@Account=2484 ,@ReportDate='2023-10-30'
+
+	select *, 
+	case when a.[Balance Amount] < 0 then cast(cast(round(abs(a.[Balance Amount]),2) as numeric(36,2)) as varchar) + ' Dr' else cast(cast(round(abs(a.[Balance Amount]),2) as numeric(36,2)) as varchar) + ' Cr' end [Balance Amount2],
+
+	case when [0-30 Days] < 0 then cast(cast(round(abs([0-30 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [0-30 Days] > 0 then cast(cast(round(abs([0-30 Days]),2) as numeric(36,2)) as varchar)+ ' Cr' else cast(cast(round(abs([0-30 Days]),2) as numeric(36,2)) as varchar) end [0-30 Days2],
+
+	case when [30-60 Days] < 0 then cast(cast(round(abs([30-60 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [30-60 Days] > 0 then cast(cast(round(abs([30-60 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([30-60 Days]),2) as numeric(36,2)) as varchar) end [30-60 Days2],
+
+	case when [60-90 Days] < 0 then cast(cast(round(abs([60-90 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [60-90 Days] > 0 then cast(cast(round(abs([60-90 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([60-90 Days]),2) as numeric(36,2)) as varchar) end [60-90 Days2],
+
+	case when [90-120 Days] < 0 then cast(cast(round(abs([90-120 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [90-120 Days] > 0 then cast(cast(round(abs([90-120 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([90-120 Days]),2) as numeric(36,2)) as varchar) end [90-120 Days2],
+
+	case when [120-150 Days] < 0 then cast(cast(round(abs([120-150 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [120-150 Days] > 0 then cast(cast(round(abs([120-150 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([120-150 Days]),2) as numeric(36,2)) as varchar) end [120-150 Days2],
+
+	case when [150-180 Days] < 0 then cast(cast(round(abs([150-180 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [150-180 Days] > 0 then cast(cast(round(abs([150-180 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([150-180 Days]),2) as numeric(36,2)) as varchar) end [150-180 Days2],
+
+	case when [180-360 Days] < 0 then cast(cast(round(abs([180-360 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [180-360 Days] > 0 then cast(cast(round(abs([180-360 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([180-360 Days]),2) as numeric(36,2)) as varchar) end [180-360 Days2],
+
+	case when [>360 Days] < 0 then cast(cast(round(abs([>360 Days]),2) as numeric(36,2)) as varchar) + ' Dr' when [>360 Days] > 0 then cast(cast(round(abs([>360 Days]),2) as numeric(36,2)) as varchar) + ' Cr' else cast(cast(round(abs([>360 Days]),2) as numeric(36,2)) as varchar) end [>360 Days2]
+
+	--(sum(case when(iVoucherType in (5888,4608)) then 1 else 0 end)over(Partition By vrCore_TCNo.sName Order By vrCore_TCNo.sName)
+	from 
+	(
+    SELECT tCore_Refrn_0.iref,tCore_Data_0.iBodyId,cCore_Vouchers_0.sAbbr+':'+tCore_Header_0.sVoucherNo[sVoucherNo], tCore_Header_0.iVoucherType,
+    tCore_Header_0.iDate [Date], convert(varchar(10), cast((CASE WHEN (tCore_Header_0.iVoucherType) IN(7168,5888) THEN  dbo.IntToDate(tCore_Data_0.iDueDate) ELSE dbo.IntToDate(tCore_Header_0.iDate) END) as date), 103) DocDate,mCore_Account.sName[Particulars], 
+    CASE WHEN tCore_Refrn_0.iRefType <2 THEN mInvoiceAmount ELSE 0 END [Invoice Amount],                        
+    Round(CASE WHEN tCore_Refrn_0.iRefType <2 then ParentRef.mAmount else ParentRef.mAmount end,5)[Balance Amount],
+    BaseCurrency.sName[Currency],tCore_Refrn_0.iDueDate
+    ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) >= 0 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 30 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[0-30 Days]
+                        
+    ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 30 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 60 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[30-60 Days]
+    ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 60 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 90 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[60-90 Days]
+    ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 90 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 120 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[90-120 Days]
+        ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 120 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 150 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[120-150 Days]
+        ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 150 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 180 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[150-180 Days]
+    ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 180 AND 
+    DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) <= 360 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[180-360 Days]
+        ,CASE WHEN DATEDIFF(dd,dbo.IntToGregDate((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end)), dbo.IntToGregDate(@intReportDate)) > 360 THEN CASE WHEN tCore_Refrn_0.iRefType <1 THEN ParentRef.mAmount ELSE 0 END ELSE 0 END[>360 Days] 
+    ,CASE WHEN tCore_Refrn_0.iRefType <2 THEN ParentRef.mAmount ELSE 0 END [Total Amount],mCore_Account.sCode[AccountCode] ,vrCore_Tenant.sName TenantName
+	,mCore_PropertyMaster.sName PropertyName,vrCore_Tenant.sCode TenantCode,vrCore_TCNo.sName TC_No,case when (tCore_Header_0.iVoucherType = 5888 and bpdc=0) then  cCore_Vouchers_0.sAbbr+':'+tCore_Header_0.sVoucherNo else '0' end PDCNo,isnull(vCore_TranHeaderData_0.sChequeNo,'0')sChequeNo,abs(sum(case when(tCore_Header_0.iVoucherType = 5888 and bpdc=0) then 1 else 0 end)over(Partition By vrCore_TCNo.sName Order By vrCore_TCNo.sName)) as pdccount,vrCore_TCNo.iMasterId TC_No_Id
+FROM tCore_Refrn_0 WITH (READUNCOMMITTED)
+JOIN 
+(
+    SELECT  iRef, tCore_Refrn_0.iCode  ,RefJoin.iBodyId, iRefTypeId   ,
+    SUM(
+        CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+        WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   
+    ) [mAmount],
+    SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (
+        CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+        WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   ) Else 0 end
+    ) [mWithOutPDCAmount],
+    case max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) when 0 then  max(CASE WHEN iRefType <2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) else max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) end [iDueDate], 
+    case max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) when 0 then  dbo.DateToInt(CONVERT(VARCHAR(12), getdate(), 102)) else max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) end [iDueDateDelay], 
+    max(CASE WHEN iRefType < 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) [iNewRefDueDate], 
+    isnull(sum(CASE WHEN iRefType = 2 THEN 1 ELSE 0 END),1) iCount, 
+	SUM(CASE WHEN iRefType < 2 THEN tCore_Refrn_0.iCurrencyId ELSE 0 END) [iCurrencyId],
+    SUM(CASE WHEN iRefType < 2 THEN iRefType ELSE 0 END) [iRefType],
+    SUM(CASE WHEN iRefType < 2 THEN 
+        CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+        WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END  
+    ELSE 0 END) [mInvoiceAmount],
+    SUM(CASE WHEN iRefType = 2 THEN 
+        CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+        WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   
+    ELSE 0 END) [mAdjustedAmount],
+    SUM(CASE WHEN iRefType < 2 THEN mAmount ELSE 0 END) [mTInvoiceAmount],
+    SUM(CASE WHEN iRefType = 2 THEN mAmount ELSE 0 END) [mTAdjustedAmount], SUM(mAmount) mTAmount , 
+    SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (mAmount) else 0 end) [mWithOutPDCTAmount],
+	SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168) ) then (mAmount) else 0 end) [mPDCTAmount],
+	SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168) ) then (
+        CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+        WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+		WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   ) Else 0 end
+    ) [mPDCAmount],
+	SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168)) then (
+        CASE WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+        WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+		WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+		WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff END   ) Else 0 end
+    ) [mPDCLAmount],
+    SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (
+        CASE WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+        WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+		WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+		WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff END   ) Else 0 end
+    ) [mWithOutPDCLocalAmount],
+
+	SUM(CASE WHEN iRefType < 2 THEN mLocalAmount ELSE 0 END) [mLInvoiceAmount],SUM(tCore_Refrn_0.mLocalAmount) [mLAmount],sum(Case when tCore_Header_0.fNet =0 then  case when tCore_Refrn_0.iCode=tCore_Data_0.iBookNo then  tCore_Data_0.mAmount2 else tCore_Data_0.mAmount1 end else tCore_Header_0.fNet end) NetAmount
+    FROM tCore_Refrn_0 WITH (READUNCOMMITTED)
+    JOIN tCore_Data_0 ON tCore_Data_0.iBodyId = tCore_Refrn_0.iBodyId
+	JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+    JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType = tCore_Header_0.iVoucherType
+    JOIN mCore_Currency WITH (READUNCOMMITTED) ON mCore_Currency.iCurrencyId = tCore_Refrn_0.iCurrencyId 
+    LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+
+    JOIN mCore_Account mCore_Account ON mCore_Account.iMasterId = tCore_Refrn_0.iCode 
+    join (Select AllRef.iRef AllRefiRef, max(isnull(NewRef.iBodyId, AllRef.iBodyId))iBodyId,max(isnull(NewRef.iRefType , AllRef.iRefType ))iRefTypeId from tCore_Refrn_0 AllRef  WITH (READUNCOMMITTED)
+	left join (Select iRef, iBodyId,iRefType from tCore_Refrn_0 WITH (READUNCOMMITTED) where iRefType=0
+    ) NewRef on AllRef.iRef=NewRef.iRef
+						
+	group by AllRef.iRef
+	) RefJoin on tCore_Refrn_0.iRef=RefJoin.AllRefiRef
+    --JOIN vrCore_Account Code ON Code.iMasterId = tCore_Data_0.iCode AND Code.iTreeId = 0
+        LEFT JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_Tenant ON vrCore_Tenant.iMasterId = tCore_Data_Tags_0.iTag3006 AND vrCore_Tenant.iTreeId=0
+    WHERE tCore_Data_0.bSuspendUpdateFA <> 1 AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus <2 
+    --AND (tCore_Header_0.iDate BETWEEN 0 AND @intReportDate or tCore_Header_0.iVoucherClass = 256)
+        AND (((tCore_Header_0.iVoucherClass in(7168 ,5888)) or tCore_Data_0.bUpdateFA=1) )
+    AND ((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end) BETWEEN 0 AND @intReportDate )
+	--AND ((tCore_Data_0.bUpdateFA = 1 OR tCore_Data_0.iType = 5 OR tCore_Header_0.iVoucherClass in(5888,7168))
+                        
+    GROUP BY iRef, tCore_Refrn_0.iCode  ,RefJoin.iBodyId, iRefTypeId  
+                        
+)ParentRef 
+ON  tCore_Refrn_0.iRef = ParentRef.iRef  and tCore_Refrn_0.iCode = ParentRef.iCode  and tCore_Refrn_0.iBodyId= ParentRef.iBodyId  and tCore_Refrn_0.iRefType= ParentRef.iRefTypeId 
+inner join (Select  ROW_NUMBER() over (Partition by tCore_Refrn_0.iRef order by tCore_Refrn_0.iRef,tCore_Refrn_0.iRefType) sVoucherNoOrder, tCore_Refrn_0.iRef, tCore_Refrn_0.iBodyId, sVoucherNo  sVoucherNoOrder1, Len( sVoucherNo) LensVoucherNoOrder,DateJoin.iDate iDateOrder, iVoucherType iVoucherTypeOrder 
+from (Select distinct iRef, min(iRefType) iRefType, iBodyId, iCode, min(iDueDate) iDueDate from tCore_Refrn_0 with (ReadUncommitted)
+group by iRef, iBodyId, iCode ) tCore_Refrn_0  
+				join tCore_Data_0  on tCore_Refrn_0.iBodyId=tCore_Data_0.iBodyId
+				join tCore_Header_0  on tCore_Header_0.iHeaderId= tCore_Data_0.iHeaderId  		
+                LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+                                    
+                join (
+									
+                Select iRef , iDate, tCore_Refrn_0.iDueDate
+				from tCore_Refrn_0 WITH (READUNCOMMITTED)  
+				inner join tCore_Data_0 on tCore_Refrn_0.iBodyId=tCore_Data_0.iBodyId
+				inner join tCore_Header_0 on tCore_Data_0.iHeaderId=tCore_Header_0.iHeaderId
+                LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+                inner join mCore_Account mCore_Account on tCore_Refrn_0.iCode=mCore_Account.iMasterId
+				--join #MasterIdTable MasterIdTable on  tCore_Refrn_0.iCode=MasterIdTable.iMasterId
+                                    
+                where iRefType <2 
+                                    
+                ) DateJoin on DateJoin.iRef= tCore_Refrn_0.iRef
+	and (case when tCore_Header_0.iVoucherClass in(5888,7168) then DateJoin.iDueDate else DateJoin.iDate end) BETWEEN 0 AND @intReportDate
+	) OrderTable on tCore_Refrn_0.iRef=OrderTable.iRef and tCore_Refrn_0.iBodyId=OrderTable.iBodyId
+	JOIN tCore_Data_0 ON tCore_Refrn_0.iBodyId = tCore_Data_0.iBodyId 
+	JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+	JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType = tCore_Header_0.iVoucherType
+	JOIN mCore_Account mCore_Account ON mCore_Account.iMasterId = ParentRef.iCode --AND mCore_Account.iTreeId = 0
+	JOIN mCore_AccountLanguage mCore_AccountLanguage ON mCore_Account.iMasterId = mCore_AccountLanguage.iMasterId AND mCore_AccountLanguage.iLanguageId = 0
+	--join #AccountClubBy mCore_Account_Props on isnull(mCore_Account.iMasterId,0)=mCore_Account_Props.iMasterId
+	JOIN vrCore_Account  Code ON Code.iMasterId = tCore_Data_0.iCode AND Code.iTreeId = 0
+	JOIN vrCore_Account  BookNo ON BookNo.iMasterId = tCore_Data_0.iBookNo AND BookNo.iTreeId = 0
+	JOIN mCore_Currency BaseCurrency  ON BaseCurrency.iCurrencyId = ParentRef.iCurrencyId
+	LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+	left JOIN tCore_Data_FX_0 ON tCore_Data_FX_0.iBodyId = tCore_Data_0.iBodyId
+	JOIN mCore_Currency WITH (READUNCOMMITTED) ON mCore_Currency.iCurrencyId = tCore_Data_0.iCurrencyId 
+	inner join (Select 0 iARAPTagId, '' sARAPTagName,'' sARAPTagCode ) ARAPTag  on tCore_Refrn_0.iDep = ARAPTag.iARAPTagId
+                   
+    left JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_Tenant ON vrCore_Tenant.iMasterId = tCore_Data_Tags_0.iTag3006 AND vrCore_Tenant.iTreeId=0
+	left join vrCore_TCNo on vrCore_TCNo.iMasterId = tCore_Data_Tags_0.iTag3007 and vrCore_TCNo.iStatus = 0
+	left join mCore_PropertyMaster on tCore_Data_0.iFaTag = mCore_PropertyMaster.iMasterId
+	left join  tCore_HeaderData5888_0 pdc on pdc.iHeaderId = tCore_Header_0.iHeaderId
+	LEFT JOIN 
+    (
+            SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData4608_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData4864_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData4865_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData5120_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData5888_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData7168_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData8706_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData8707_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0 UNION ALL SELECT header.iHeaderId,header.sChequeNo FROM tCore_HeaderData8708_0 header WITH (READUNCOMMITTED)  WHERE LEN(header.sChequeNo) > 0
+    )vCore_TranHeaderData_0 ON vCore_TranHeaderData_0.iHeaderId = tCore_Header_0.iHeaderId 
+	WHERE tCore_Refrn_0.mAmount<>0 and (tCore_Data_0.bSuspendUpdateFA <> 1 AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus < 2 
+                    
+		and Round(CASE WHEN tCore_Refrn_0.iRefType <2 then ParentRef.mAmount else 0 end,2)<>0  AND (tCore_Header_0.iVoucherClass in(7168, 5888) OR tCore_Data_0.bUpdateFA=1)
+                    
+	and mCore_Account.iMasterId = @Account
+		AND (((tCore_Header_0.iVoucherClass in(7168 ,5888)) or tCore_Data_0.bUpdateFA=1) ) )
+		AND  (tCore_Data_Tags_0.iTag3006 =@Tenant or @Tenant = 0)
+	AND (tCore_Data_0.iFaTag = @Property or @Property=0)
+                    
+                    
+	AND ((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end) BETWEEN 0 AND @intReportDate )
+	--Select ISNULL(sum(mBaseAmount),0) mBaseAmount,ISNULL(sum(mAmount),0) mAmount, ISNULL(sum(mLocalAmount),0) mLocalAmount from tCore_Refrn_0 r
+	--                                       inner join tCore_Data_0 d on r.iBodyId= d.iBodyId
+	--                                       inner join tCore_Header_0 h on d.iHeaderId= h.iHeaderId
+	--                                       WHERE d.bSuspendUpdateFA <> 1 
+	--                                       AND h.bSuspended = 0 
+	--                                       AND 
+	--                                       (
+	--                                        h.iDate BETWEEN 0 AND @intReportDate and                        
+	--                                        ((d.iDueDate <= @intReportDate AND d.bPdc = 0) OR (d.iDueDate > 0))
+	--                                       )
+	--                                       --AND (((h.iVoucherClass) in (7168) and iRefType=2) or ((h.iVoucherClass) in (5888) and iRefType=0) )
+	--                                       AND (h.iVoucherClass) in (5888,7168)
+	--                                       and d.iCode=@Account
+	 
+	)a
+	inner join
+	(
+		select #AgeingTbl.iBodyId,#AgeingTbl.TC_No_Id,sum([Balance Amount]) over (partition by #AgeingTbl.TC_No_Id order by iDate,#AgeingTbl.iBodyId) cumbal, row_number()over (partition by #AgeingTbl.TC_No_Id order by iDate,#AgeingTbl.iBodyId) rnum  
+		from #AgeingTbl
+		inner join 
+		(
+			select max(iBodyId) iBodyId,TC_No_Id from 
+			(
+				select sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal,iBodyId,TC_No_Id  from #AgeingTbl
+			)e
+			--where cumbal = 0
+			group by TC_No_Id
+		)f on f.TC_No_Id = #AgeingTbl.TC_No_Id
+	)b on a.iBodyId = b.iBodyId and a.TC_No_Id= b.TC_No_Id
+	order by a.Date,a.iBodyId
+	--select * from #AgeingTbl
+	--select #AgeingTbl.iBodyId,sum([Balance Amount]) over (partition by #AgeingTbl.TC_No_Id order by iDate,#AgeingTbl.iBodyId) cumbal, row_number()over (partition by #AgeingTbl.TC_No_Id order by iDate,#AgeingTbl.iBodyId) rnum  
+	--	from #AgeingTbl
+	--	inner join 
+	--	(
+	--		select max(iBodyId) iBodyId,TC_No_Id from 
+	--		(
+	--			select sum([Balance Amount]) over (partition by TC_No_Id order by iDate,iBodyId) cumbal,iBodyId,TC_No_Id  from #AgeingTbl
+	--		)e
+	--		where cumbal = 0
+	--		group by TC_No_Id
+	--	)f on f.iBodyId < #AgeingTbl.iBodyId and f.TC_No_Id = #AgeingTbl.TC_No_Id
+end
+--exec Tenant_Ageing_report @Property=0,@Tenant=0,@Account=2484 ,@ReportDate='2023-03-08'
+
+
+
+
+
+
+
+USE [Focus80P0]
+GO
+/****** Object:  StoredProcedure [dbo].[Tenant_Ageing_report_detail]    Script Date: 21/06/2022 5:14:06 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+--exec Tenant_Ageing_report @Property=0,@Tenant=0,@Account=2484 ,@ReportDate='2023-10-08'
+ALTER PROCEDURE [dbo].[Tenant_Ageing_report_detail]
+    @Property			int,
+	@Tenant				int,
+	@Account			int,
+	@ReportDate			varchar(50)
+AS
+BEGIN
+    declare @intReportDate int = dbo.DateToInt(@ReportDate);      
+	drop table if exists #AgeingTbl
+
+
+	SELECT tCore_Data_0.iBodyId,tCore_Header_0.sVoucherNo[sVoucherNo], tCore_Header_0.iVoucherType,tCore_Header_0.iDate,vrCore_TCNo.iMasterId TC_No_Id,
+	Round(CASE WHEN tCore_Refrn_0.iRefType <2 then ParentRef.mAmount else ParentRef.mAmount end,5)[Balance Amount],tCore_Refrn_0.iRef,tCore_Refrn_0.iRefType
+	--into #AgeingTbl
+    FROM tCore_Refrn_0 WITH (READUNCOMMITTED)
+    JOIN 
+    (
+        SELECT  iRef, tCore_Refrn_0.iCode  ,RefJoin.iBodyId, iRefTypeId   ,
+        SUM(
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   
+        ) [mAmount],
+        SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   ) Else 0 end
+        ) [mWithOutPDCAmount],
+        case max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) when 0 then  max(CASE WHEN iRefType <2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) else max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) end [iDueDate], 
+        case max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) when 0 then  dbo.DateToInt(CONVERT(VARCHAR(12), getdate(), 102)) else max(CASE WHEN iRefType = 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) end [iDueDateDelay], 
+        max(CASE WHEN iRefType < 2 THEN tCore_Refrn_0.iDueDate ELSE 0 END) [iNewRefDueDate], 
+        isnull(sum(CASE WHEN iRefType = 2 THEN 1 ELSE 0 END),1) iCount, 
+		SUM(CASE WHEN iRefType < 2 THEN tCore_Refrn_0.iCurrencyId ELSE 0 END) [iCurrencyId],
+        SUM(CASE WHEN iRefType < 2 THEN iRefType ELSE 0 END) [iRefType],
+        SUM(CASE WHEN iRefType < 2 THEN 
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END  
+        ELSE 0 END) [mInvoiceAmount],
+        SUM(CASE WHEN iRefType = 2 THEN 
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   
+        ELSE 0 END) [mAdjustedAmount],
+        SUM(CASE WHEN iRefType < 2 THEN mAmount ELSE 0 END) [mTInvoiceAmount],
+        SUM(CASE WHEN iRefType = 2 THEN mAmount ELSE 0 END) [mTAdjustedAmount], SUM(mAmount) mTAmount , 
+        SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (mAmount) else 0 end) [mWithOutPDCTAmount],
+		SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168) ) then (mAmount) else 0 end) [mPDCTAmount],
+		SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168) ) then (
+            CASE WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+            WHEN tCore_Refrn_0.mBaseAmount >= 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff 
+			WHEN tCore_Refrn_0.mBaseAmount < 0 AND mExchangeDiff <= 0 THEN tCore_Refrn_0.mBaseAmount - mExchangeDiff END   ) Else 0 end
+        ) [mPDCAmount],
+		SUM(case when (tCore_Header_0.iVoucherClass in (5888,7168)) then (
+            CASE WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+            WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff END   ) Else 0 end
+        ) [mPDCLAmount],
+        SUM(case when (tCore_Header_0.iVoucherClass not in (5888,7168) or tCore_Data_0.bUpdateFA=1) then (
+            CASE WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+            WHEN tCore_Refrn_0.mLocalAmount >= 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff >= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff 
+			WHEN tCore_Refrn_0.mLocalAmount < 0 AND mLocalExchangeDiff <= 0 THEN tCore_Refrn_0.mLocalAmount - mLocalExchangeDiff END   ) Else 0 end
+        ) [mWithOutPDCLocalAmount],
+
+		SUM(CASE WHEN iRefType < 2 THEN mLocalAmount ELSE 0 END) [mLInvoiceAmount],SUM(tCore_Refrn_0.mLocalAmount) [mLAmount],sum(Case when tCore_Header_0.fNet =0 then  case when tCore_Refrn_0.iCode=tCore_Data_0.iBookNo then  tCore_Data_0.mAmount2 else tCore_Data_0.mAmount1 end else tCore_Header_0.fNet end) NetAmount
+        FROM tCore_Refrn_0 WITH (READUNCOMMITTED)
+        JOIN tCore_Data_0 ON tCore_Data_0.iBodyId = tCore_Refrn_0.iBodyId
+	    JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+        JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType = tCore_Header_0.iVoucherType
+        JOIN mCore_Currency WITH (READUNCOMMITTED) ON mCore_Currency.iCurrencyId = tCore_Refrn_0.iCurrencyId 
+        LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+
+        JOIN mCore_Account mCore_Account ON mCore_Account.iMasterId = tCore_Refrn_0.iCode 
+        join (Select AllRef.iRef AllRefiRef, max(isnull(NewRef.iBodyId, AllRef.iBodyId))iBodyId,max(isnull(NewRef.iRefType , AllRef.iRefType ))iRefTypeId from tCore_Refrn_0 AllRef  WITH (READUNCOMMITTED)
+		left join (Select iRef, iBodyId,iRefType from tCore_Refrn_0 WITH (READUNCOMMITTED) where iRefType=0
+        ) NewRef on AllRef.iRef=NewRef.iRef
+						
+		group by AllRef.iRef
+		) RefJoin on tCore_Refrn_0.iRef=RefJoin.AllRefiRef
+            LEFT JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_Tenant ON vrCore_Tenant.iMasterId = tCore_Data_Tags_0.iTag3006 AND vrCore_Tenant.iTreeId=0
+        WHERE tCore_Data_0.bSuspendUpdateFA <> 1 AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus <2 
+            AND (((tCore_Header_0.iVoucherClass in(7168 ,5888)) or tCore_Data_0.bUpdateFA=1) )
+        AND ((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end) BETWEEN 0 AND @intReportDate )
+                        
+        GROUP BY iRef, tCore_Refrn_0.iCode  ,RefJoin.iBodyId, iRefTypeId  
+                        
+    )ParentRef 
+    ON  tCore_Refrn_0.iRef = ParentRef.iRef  and tCore_Refrn_0.iCode = ParentRef.iCode  and tCore_Refrn_0.iBodyId= ParentRef.iBodyId  and tCore_Refrn_0.iRefType= ParentRef.iRefTypeId 
+    inner join (Select  ROW_NUMBER() over (Partition by tCore_Refrn_0.iRef order by tCore_Refrn_0.iRef,tCore_Refrn_0.iRefType) sVoucherNoOrder, tCore_Refrn_0.iRef, tCore_Refrn_0.iBodyId, sVoucherNo  sVoucherNoOrder1, Len( sVoucherNo) LensVoucherNoOrder,DateJoin.iDate iDateOrder, iVoucherType iVoucherTypeOrder 
+	from (Select distinct iRef, min(iRefType) iRefType, iBodyId, iCode, min(iDueDate) iDueDate from tCore_Refrn_0 with (ReadUncommitted)
+    group by iRef, iBodyId, iCode ) tCore_Refrn_0  
+					join tCore_Data_0  on tCore_Refrn_0.iBodyId=tCore_Data_0.iBodyId
+					join tCore_Header_0  on tCore_Header_0.iHeaderId= tCore_Data_0.iHeaderId  		
+                    LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+                                    
+                    join (
+									
+                    Select iRef , iDate, tCore_Refrn_0.iDueDate
+					from tCore_Refrn_0 WITH (READUNCOMMITTED)  
+					inner join tCore_Data_0 on tCore_Refrn_0.iBodyId=tCore_Data_0.iBodyId
+					inner join tCore_Header_0 on tCore_Data_0.iHeaderId=tCore_Header_0.iHeaderId
+                    LEFT JOIN tCore_Indta_0 ON tCore_Data_0.iBodyId = tCore_Indta_0.iBodyId 
+                    inner join mCore_Account mCore_Account on tCore_Refrn_0.iCode=mCore_Account.iMasterId
+					--join #MasterIdTable MasterIdTable on  tCore_Refrn_0.iCode=MasterIdTable.iMasterId
+                                    
+                    where iRefType <2 
+                                    
+                    ) DateJoin on DateJoin.iRef= tCore_Refrn_0.iRef
+	--Where iRefType in(0,1,2) 
+        and (case when tCore_Header_0.iVoucherClass in(5888,7168) then DateJoin.iDueDate else DateJoin.iDate end) BETWEEN 0 AND @intReportDate
+    ) OrderTable on tCore_Refrn_0.iRef=OrderTable.iRef and tCore_Refrn_0.iBodyId=OrderTable.iBodyId
+    JOIN tCore_Data_0 ON tCore_Refrn_0.iBodyId = tCore_Data_0.iBodyId 
+    JOIN tCore_Header_0 ON tCore_Data_0.iHeaderId = tCore_Header_0.iHeaderId
+    JOIN cCore_Vouchers_0 WITH (READUNCOMMITTED) ON cCore_Vouchers_0.iVoucherType = tCore_Header_0.iVoucherType
+    JOIN mCore_Account mCore_Account ON mCore_Account.iMasterId = ParentRef.iCode --AND mCore_Account.iTreeId = 0
+    JOIN mCore_AccountLanguage mCore_AccountLanguage ON mCore_Account.iMasterId = mCore_AccountLanguage.iMasterId AND mCore_AccountLanguage.iLanguageId = 0
+    --join #AccountClubBy mCore_Account_Props on isnull(mCore_Account.iMasterId,0)=mCore_Account_Props.iMasterId
+    JOIN vrCore_Account  Code ON Code.iMasterId = tCore_Data_0.iCode AND Code.iTreeId = 0
+    JOIN vrCore_Account  BookNo ON BookNo.iMasterId = tCore_Data_0.iBookNo AND BookNo.iTreeId = 0
+    JOIN mCore_Currency BaseCurrency  ON BaseCurrency.iCurrencyId = ParentRef.iCurrencyId
+    inner join (Select 0 iARAPTagId, '' sARAPTagName,'' sARAPTagCode ) ARAPTag  on tCore_Refrn_0.iDep = ARAPTag.iARAPTagId
+                   
+        left JOIN tCore_Data_Tags_0 ON tCore_Data_Tags_0.iBodyId = tCore_Data_0.iBodyId  LEFT JOIN vrCore_Tenant ON vrCore_Tenant.iMasterId = tCore_Data_Tags_0.iTag3006 AND vrCore_Tenant.iTreeId=0
+		left join vrCore_TCNo on vrCore_TCNo.iMasterId = tCore_Data_Tags_0.iTag3007 and vrCore_TCNo.iStatus = 0
+					 
+    WHERE tCore_Refrn_0.mAmount<>0 and (tCore_Data_0.bSuspendUpdateFA <> 1 AND tCore_Header_0.bSuspended = 0 AND tCore_Data_0.iAuthStatus < 2 
+                    
+		and Round(CASE WHEN tCore_Refrn_0.iRefType <2 then ParentRef.mAmount else 0 end,2)<>0  AND (tCore_Header_0.iVoucherClass in(7168, 5888) OR tCore_Data_0.bUpdateFA=1)
+                    
+    and mCore_Account.iMasterId = @Account
+        AND (((tCore_Header_0.iVoucherClass in(7168 ,5888)) or tCore_Data_0.bUpdateFA=1) ) )
+        AND  (tCore_Data_Tags_0.iTag3006 =@Tenant or @Tenant = 0)
+    AND (tCore_Data_0.iFaTag = @Property or @Property=0)
+    AND vrCore_TCNo.iMasterId <>0 and vrCore_TCNo.iMasterId <>31               
+                    
+    AND ((case when tCore_Header_0.iVoucherClass in(5888,7168) then tCore_Data_0.iDueDate else tCore_Header_0.iDate end) BETWEEN 0 AND @intReportDate )
+	
+end
+--exec Tenant_Ageing_report @Property=0,@Tenant=0,@Account=2484 ,@ReportDate='2023-03-08'

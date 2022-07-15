@@ -1,0 +1,461 @@
+﻿@model SOAReport.Models.ReportData
+
+@{
+    ViewBag.Title = "Report";
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+}
+
+
+@using (Html.BeginForm("ExcelGenerate", "Home", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+{
+    <style>
+        #progress {
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            opacity: 0.5;
+            z-index: 1500;
+            background: url("https://www.creditmutuel.fr/cmne/fr/banques/webservices/nswr/images/loading.gif") no-repeat center center rgba(0,0,0,0.26);
+            /*background:url("../../Content/Processing.gif") no-repeat center center rgba(0,0,0,0.25);*/
+        }
+
+        .subtotal {
+            /*background-color:#0073AA !important;*/
+            color: black;
+        }
+
+        #BaseCurrency {
+            text-align: right;
+        }
+
+        .label {
+            color: #34c4f9;
+        }
+
+        h2 {
+            border-bottom: 3px solid #cc9900;
+            font: 2.75em/1.75em Georgia, serif;
+            color: #996600;
+            text-align: center;
+        }
+
+        tr.highlighted td {
+            background: brown;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        #Totaltr {
+            background-color: #99ccff;
+        }
+
+        body {
+            padding: 0px 20px !important;
+        }
+
+        .table .thead-dark th {
+            color: #fff;
+            background-color: #286090;
+            /*border-color: #32383e;*/
+        }
+
+        /* This is what we are focused on */
+        .table-wrap {
+            overflow-y: scroll;
+            height: 500px;
+            font-size: 0.8em;
+        }
+
+            .table-wrap th {
+                position: sticky;
+                top: 0;
+            }
+
+            .table-wrap thead {
+                position: sticky;
+                top: 0;
+            }
+
+        /* A bit more styling to make it look better */
+        .table-wrap {
+            /*background: CadetBlue;*/
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th {
+            background: #DDD;
+        }
+
+        td, th {
+            padding: 0.3rem !important;
+            text-align: left;
+        }
+
+        .nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+            background-color: #c7dff1 !important;
+        }
+
+
+
+
+        .paging-nav {
+            text-align: right;
+            padding-top: 2px;
+        }
+
+            .paging-nav a {
+                margin: auto 1px;
+                text-decoration: none;
+                display: inline-block;
+                padding: 1px 7px;
+                background: #91b9e6;
+                color: white;
+                border-radius: 3px;
+            }
+
+            .paging-nav .selected-page {
+                background: #187ed5;
+                font-weight: bold;
+            }
+
+        .paging-nav,
+        #tableData {
+            width: 100%;
+            margin: 0 auto;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+
+    <div id="progress" class="modal">
+        <div class="center">
+            <img src="~/Content/loader4.gif" />
+        </div>
+    </div>
+    <input type="hidden" id="cid" name="cid" />
+    <input type="hidden" id="sid" name="sid" />
+    <input type="hidden" id="uid" name="uid" />
+
+    <h2 style="color: #34c4f9 ;text-align:center;"> Statement of Account</h2>
+    <div class="row form-group" style="margin-top:1%">
+        <div class="col-lg-4 col-md-4 col-sm-4" style="text-align:center;">
+        </div>
+        <div class="col-lg-4 col-md-4 col-sm-4" style="text-align:center;">
+
+        </div>
+        <div class="col-lg-4 col-md-4 col-sm-4" style="text-align:center;">
+            <a class="btn btn-primary btn-sm" id="btnPdf"> Export to PDF </a>
+            @*<a class="btn btn-primary btn-sm" href="~/Reports/ReportViewer/SOAReport.aspx">View Report</a>*@
+            <button type="submit" id="btnExcel" class="btn btn-primary btn-sm">Export to Excel</button>
+            @*<a class="btn btn-primary btn-sm" href="@Url.Action("ExcelGenerate")"> Export to Excel </a>*@
+            @Html.ActionLink("Back", "Index", "Home", new { @CompanyId = TempData["CompanyId"] }, new { @class = "btn btn-primary btn-sm" })
+        </div>
+    </div>
+    <div class="row form-group">
+        <div class="col-lg-12 col-md-12 col-sm-12">
+            @{
+                var HeaderData = Model._searchObj;
+
+                <table style="font-weight:bold">
+                    <tr>
+                        <td>
+                            Tenant :
+                        </td>
+                        <td>
+                            @HeaderData.Tenant
+                        </td>
+                        <td>
+                            Date :
+                        </td>
+                        <td>
+                            @HeaderData.ReportDate
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Property :
+                        </td>
+                        <td>
+                            @HeaderData.PropertyName
+                        </td>
+                        <td>
+                            TC No :
+                        </td>
+                        <td>
+                            @HeaderData.TC_Code
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Unit :
+                        </td>
+                        <td>
+                            @HeaderData.UnitName
+                        </td>
+                        <td>
+                            Termination Date :
+                        </td>
+                        <td>
+                            @HeaderData.TerminationDate
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Contract Start Date :
+                        </td>
+                        <td>
+                            @HeaderData.ContractStartDate
+                        </td>
+                        <td>
+                            Contract Amount :
+                        </td>
+                        <td>
+                            @HeaderData.ContractAmount
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            Contract End Date :
+                        </td>
+                        <td>
+                            @HeaderData.ContractEndDate
+                        </td>
+                        <td>
+                            No. of Days Stayed
+                        </td>
+                        <td>
+                            @Model._listData[0].No_ofdays_stayed
+                        </td>
+                    </tr>
+                </table>
+            }
+        </div>
+        <div class="col-lg-12 col-md-12 col-sm-12">
+            <div class="table-wrap" style="height:auto !important">
+                <table class="table table-bordered table-striped" border="1" id="tableData">
+                    <thead class="thead-dark">
+                        <tr id="tableHead">
+                            <th style="text-align:center;">Date</th>
+                            <th style="text-align:center;">Doc No</th>
+                            <th style="text-align:center;">Account</th>
+                            <th style="text-align:center;">Debit</th>
+                            <th style="text-align:center;">Credit</th>
+                            <th style="text-align:center;">Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="golden">
+                        @{
+                            try
+                            {
+                                var list = Model._listData;
+                                if (list != null)
+                                {
+                                    decimal dr = 0;
+                                    decimal cr = 0;
+                                    decimal bal = 0;
+                                    int count = 0;
+                                    int pdccount = 0;
+                                    foreach (var obj in list)
+                                    {
+                                        dr = Convert.ToDecimal(obj.Debit) + dr;
+                                        bal = Convert.ToDecimal(obj.balance) + bal;
+                                        cr = Convert.ToDecimal(obj.Credit) + cr;
+                                        count++;
+                                        if (obj.PDCNo != "0")
+                                        {
+                                            pdccount++;
+                                        }
+                                        <tr align="center">
+                                            <td style="text-align:center;">@obj.DocDate</td>
+                                            <td style="text-align:center;">@obj.DocNo</td>
+                                            <td style="text-align:center;">@obj.Account</td>
+                                            <td style="text-align:right;">@obj.Debit.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@obj.Credit.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@obj.balance.ToString("#,##0.00")</td>
+
+                                        </tr>
+                                    }
+                                    <tr align="center" class="subtotal">
+                                        <td style="text-align:center;" colspan="3"><b>Total</b></td>
+                                        <td style="text-align:right;"><b>@dr.ToString("#,##0.00")</b></td>
+                                        <td style="text-align:right;"><b>@cr.ToString("#,##0.00")</b></td>
+                                        <td style="text-align:right;"><b></b></td>
+                                    </tr>
+                                    if (pdccount > 0)
+                                    {
+                                        <tr>
+                                            <td colspan="10">
+                                                <table style="width:100%">
+                                                    <tr align="center">
+                                                        <td style="text-align:center">
+                                                            <h3>Summary</h3>
+                                                        </td>
+                                                    </tr>
+                                                    <tr align="center">
+                                                        <td style="text-align:center">
+                                                            <h4>Uncleared PDC</h4>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="10">
+                                                <table style="width:100%">
+                                                    <tr>
+                                                        <td style="text-align:center;">
+                                                            Doc No
+                                                        </td>
+                                                        <td style="text-align:center;">
+                                                            Cheque No
+                                                        </td>
+                                                        <td style="text-align:center;">
+                                                            Cheque Date
+                                                        </td>
+                                                        <td style="text-align:center;">
+                                                            Amount
+                                                        </td>
+                                                    </tr>
+
+
+                                                    @foreach (var obj1 in list)
+                                                    {
+                                                        if (obj1.PDCNo != "0")
+                                                        {
+
+                                                            <tr align="center">
+                                                                <td style="text-align:center;">@obj1.DocNo</td>
+                                                                <td style="text-align:center;">@obj1.sChequeNo</td>
+                                                                <td style="text-align:center;">@obj1.DocDate</td>
+                                                                <td style="text-align:center;">
+                                                                    @obj1.Credit.ToString("#,##0.00")
+                                                                </td>
+                                                            </tr>
+                                                        }
+
+                                                    }
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                //alert(ex.Message);
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+}
+
+@section Scripts {
+
+    <script src="~/Scripts/FClient.js"></script>
+    <script src="~/Scripts/jquery-1.10.2.min.js"></script>
+    <link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+    <script src="~/Scripts/bootstrap.min.js"></script>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css">
+    <!-- jQuery -->
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <!-- jQuery UI -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.2/jquery-ui.min.js"></script>
+    <script src="~/Scripts/paging.js"></script>
+    <script>
+        var compId=@TempData["CompanyId"];
+        var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
+        var pagesize ='@System.Web.Configuration.WebConfigurationManager.AppSettings["pagesize"]';
+        $(document).ready(function() {
+            debugger
+            getSetPropertyForCompanyId();
+            $('#cid').val(compId);
+            $('#tableData').paging({ limit: parseInt(pagesize) });
+            $("#golden tr").css("display", "");
+            $("#btnPdf").click(function () {
+                ExportPdf();
+            });
+        });
+
+            var domain ='@System.Web.Configuration.WebConfigurationManager.AppSettings["domain"]';
+
+        function ExportPdf() {
+            debugger;
+            $("#progress").show();
+            var date = new Date('@Model._searchObj.ReportDate');
+            var dateString = (date.getFullYear() + '-'
+                + ('0' + (date.getDate() + 1)).slice(-2)
+                + '-' + ('0' + (date.getMonth())).slice(-2));
+            var tcno = '@Model._searchObj.TC_Code';
+            var dt = '@Model._searchObj.ReportDate';
+            $.ajax({
+                url: path + domain + '/Home/ExportPDF5',
+                cache: false,
+                type: "post",
+                datatype: 'json',
+                async: true,
+                data: { "CompanyId": compId, "TcNo": tcno, "ReportDt": dt},
+                success: function (response) {
+                    debugger;
+                    $("#progress").hide();
+                    console.log("Success");
+                    var path2 = path + domain +  "/Reports/PrintCrystal.aspx?reportFile=" + response;
+
+                    window.open(path2);
+                },
+                error: function (err) {
+                    console.log("Error")
+                    console.log(err)
+                }
+            })
+        }
+        function getSetPropertyForCompanyId() {
+            Focus8WAPI.getGlobalValue("fnGetValueCallBack", "*", 2);
+        }
+        let r =1
+        function fnGetValueCallBack2(objWrapperResult) {
+            var bla = "";
+            var responseData = objWrapperResult.data;
+            if (objWrapperResult.requestType == 1) {
+                var Comp = responseData.FieldValue;
+                debugger
+                $('#cid').val(Comp);
+            }
+        }
+
+        function fnGetValueCallBack(objWrapperResult) {
+            try {
+                console.log(`fnGetValueCallBack :: ${r} `,objWrapperResult)
+                var responseData = objWrapperResult.data;
+                debugger
+                console.log(responseData.SessionId);
+                var responseData = objWrapperResult.data;
+                var Comp =responseData.CompanyId;
+                var sessionid = responseData.SessionId;
+                var userid = responseData.LoginId;
+                r++
+                $('#cid').val(Comp);
+                $('#sid').val(sessionid);
+                $('#uid').val(userid);
+            }
+            catch (err) {
+                alert("Exception: {fnGetValueCallBack2} " + err.message);
+                Focus8WAPI.continueModule(Focus8WAPI.ENUMS.MODULE_TYPE.TRANSACTION, true);
+            }
+        }
+    </script>
+    @Scripts.Render("~/bundles/jqueryval")
+}
+
+

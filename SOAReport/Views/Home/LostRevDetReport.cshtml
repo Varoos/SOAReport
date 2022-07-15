@@ -1,0 +1,341 @@
+﻿@model SOAReport.Models.LostRevDetCls
+
+@{
+    Layout = null;
+}
+
+
+@using (Html.BeginForm("LostRevDetExcel", "Home", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+{
+    <style>
+        #progress {
+            text-align: center;
+            width: 100%;
+            height: 100%;
+            position: fixed;
+            opacity: 0.5;
+            z-index: 1500;
+            background-image: url('../../Content/loader4.gif')no-repeat center center rgba(0,0,0,0.26);
+            /*background:url("../../Content/Processing.gif") no-repeat center center rgba(0,0,0,0.25);*/
+        }
+
+        .subtotal {
+            /*background-color:#0073AA !important;*/
+            color: black;
+        }
+
+        #BaseCurrency {
+            text-align: right;
+        }
+
+        .label {
+            color: #34c4f9;
+        }
+
+        h2 {
+            border-bottom: 3px solid #cc9900;
+            font: 2.75em/1.75em Georgia, serif;
+            color: #996600;
+            text-align: center;
+        }
+
+        tr.highlighted td {
+            background: brown;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        #Totaltr {
+            background-color: #99ccff;
+        }
+
+        body {
+            padding: 0px 20px !important;
+        }
+
+        .table .thead-dark th {
+            color: #fff;
+            background-color: #286090;
+            /*border-color: #32383e;*/
+        }
+
+        /* This is what we are focused on */
+        .table-wrap {
+            height: 500px;
+            font-size: 0.8em;
+        }
+
+            .table-wrap th {
+                position: sticky;
+                top: 0;
+            }
+
+            .table-wrap thead {
+                position: sticky;
+                top: 0;
+            }
+
+        /* A bit more styling to make it look better */
+        .table-wrap {
+            /*background: CadetBlue;*/
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th {
+            background: #DDD;
+        }
+
+        td, th {
+            padding: 0.3rem !important;
+            text-align: left;
+        }
+
+        .nav-tabs > li.active > a, .nav-tabs > li.active > a:hover, .nav-tabs > li.active > a:focus {
+            background-color: #c7dff1 !important;
+        }
+
+        .paging-nav {
+            text-align: right;
+            padding-top: 2px;
+        }
+
+            .paging-nav a {
+                margin: auto 1px;
+                text-decoration: none;
+                display: inline-block;
+                padding: 1px 7px;
+                background: #91b9e6;
+                color: white;
+                border-radius: 3px;
+            }
+
+            .paging-nav .selected-page {
+                background: #187ed5;
+                font-weight: bold;
+            }
+
+        .paging-nav,
+        #tableData {
+            width: 100%;
+            font-family: Arial, sans-serif;
+            font-size: x-small !important;
+        }
+
+        #wrapper {
+            width: 100%;
+            padding: 2%
+        }
+    </style>
+    <div id="wrapper">
+        <div id="progress" class="modal">
+            <div class="center">
+                <img src="~/Content/loader4.gif" />
+            </div>
+        </div>
+        <h2 style="color: #34c4f9 ;text-align:center;"> Lost Revenue Detail Report</h2>
+        <div class="row form-group" style="margin-top:1%">
+            <div class="col-lg-4 col-md-4 col-sm-4" style="text-align:center;">
+            </div>
+            <div class="col-lg-4 col-md-4 col-sm-4" style="text-align:center;">
+
+            </div>
+            <div class="col-lg-4 col-md-4 col-sm-4" style="text-align:center;">
+                @*<a class="btn btn-primary btn-sm" id="btnPdf"> Export to PDF </a>*@
+                @*<a class="btn btn-primary btn-sm" href="~/Reports/ReportViewer/SOAReport.aspx">View Report</a>*@
+                <button type="submit" id="btnExcel" class="btn btn-primary btn-sm">Export to Excel</button>
+                @*<a class="btn btn-primary btn-sm" href="@Url.Action("ExcelGenerate")"> Export to Excel </a>*@
+                @Html.ActionLink("Back", "LostRevDetIndex", "Home", new { @CompanyId = Model._filter.CompanyId }, new { @class = "btn btn-primary btn-sm" })
+            </div>
+        </div>
+        <div class="row form-group">
+            <div class="col-lg-12 col-md-12 col-sm-12">
+
+                @{
+                    var HeaderData = Model._filter;
+                    var list = Model._list;
+                    <table style="font-weight:bold">
+                        <tr>
+                            <td>
+                                From :
+                            </td>
+                            <td>
+                                @list[0].FromDate
+                            </td>
+                            <td>
+                                To :
+                            </td>
+                            <td>
+                                @list[0].ToDate
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                Property Group :
+                            </td>
+                            <td>
+                                @HeaderData.PropertyGrpName
+                            </td>
+                            <td>
+                                Property :
+                            </td>
+                            <td>
+                                @HeaderData.PropertyName
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>
+                                Unit :
+                            </td>
+                            <td>
+                                @HeaderData.UnitName
+                            </td>
+                            <td>
+                            </td>
+                            <td>
+                            </td>
+                        </tr>
+
+                    </table>
+                }
+            </div>
+            <div class="col-lg-12 col-md-12 col-sm-12">
+                <div class="table-wrap" style="height:auto !important">
+                    <table class="table table-bordered table-striped" border="1" id="tableData">
+                        <thead class="thead-dark">
+                            <tr id="tableHead">
+                                <th style="text-align:center;">
+                                    Property Name
+                                </th>
+                                <th style="text-align:center;">
+                                    Unit No
+                                </th>
+                                <th style="text-align:center;">
+                                    Annual Rent
+                                </th>
+                                <th style="text-align:center;">
+                                    Lost Start Date
+                                </th>
+                                <th style="text-align:center;">
+                                    Lost End Date
+                                </th>
+                                <th style="text-align:center;">
+                                    Total Lost Days
+                                </th>
+                                <th style="text-align:center;">
+                                    Total Revenue Lost
+                                </th>
+                                <th style="text-align:center;">
+                                    Jan
+                                </th>
+                                <th style="text-align:center;">
+                                    Feb
+                                </th>
+                                <th style="text-align:center;">
+                                    Mar
+                                </th>
+                                <th style="text-align:center;">
+                                    Apr
+                                </th>
+                                <th style="text-align:center;">
+                                    May
+                                </th>
+                                <th style="text-align:center;">
+                                    Jun
+                                </th>
+                                <th style="text-align:center;">
+                                    Jul
+                                </th>
+                                <th style="text-align:center;">
+                                    Aug
+                                </th>
+                                <th style="text-align:center;">
+                                    Sep
+                                </th>
+                                <th style="text-align:center;">
+                                    Oct
+                                </th>
+                                <th style="text-align:center;">
+                                    Nov
+                                </th>
+                                <th style="text-align:center;">
+                                   Dec
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="golden">
+                            @{
+                                try
+                                {
+
+                                    if (list != null)
+                                    {
+                                        foreach (var obj in list)
+                                        {
+                                                        <tr align="center">
+                                                            <td style="text-align:center;">@obj.Property</td>
+                                                            <td style="text-align:center;">@obj.Unit</td>
+                                                            <td style="text-align:center;">@obj.AnnualRent.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.LostStartDt</td>
+                                                            <td style="text-align:center;">@obj.LostEndDt</td>
+                                                            <td style="text-align:center;">@obj.TotLostDays.ToString("#,##0")</td>
+                                                            <td style="text-align:center;">@obj.TotLostRev.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Jan.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Feb.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Mar.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.Apr.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.May.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Jun.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Jul.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.Aug.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Sep.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Oct.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;">@obj.Nov.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.Dec.ToString("#,##0.00")</td>
+                                                        </tr>
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    //alert(ex.Message);
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+<script src="~/Scripts/FClient.js"></script>
+<script src="~/Scripts/jquery-1.10.2.min.js"></script>
+<link href="~/Content/bootstrap.min.css" rel="stylesheet" />
+<script src="~/Scripts/bootstrap.min.js"></script>
+<script src="~/Scripts/jquery-ui.min.js"></script>
+<script src="~/Scripts/paging.js"></script>
+<link href="~/Content/dataTables.min.css" rel="stylesheet" />
+<script src="~/Scripts/dataTables.min.js"></script>
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.datatables.net/1.10.20/css/dataTables.bootstrap.min.css" rel="stylesheet" />
+<script src="https://cdn.datatables.net/1.10.20/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.20/js/dataTables.bootstrap.min.js"></script>
+<script>
+        var compId =@Model._filter.CompanyId;
+        var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
+        $(document).ready(function() {
+            debugger
+            $('#tableData').DataTable();
+            
+        });
+</script>
+@Scripts.Render("~/bundles/jqueryval")
+
+

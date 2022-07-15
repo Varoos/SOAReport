@@ -1,0 +1,394 @@
+﻿@model SOAReport.Models.Search
+
+@{
+    ViewBag.Title = "AgeingIndex";
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+}
+
+<style>
+    #progress {
+        text-align: center;
+        z-index: 1000000;
+        overflow: auto;
+        height: 100%;
+    }
+
+    #load {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        z-index: 9999;
+        background: url("https://www.creditmutuel.fr/cmne/fr/banques/webservices/nswr/images/loading.gif") no-repeat center center rgba(0,0,0,0.26);
+        /*background:url("../../Content/Processing.gif") no-repeat center center rgba(0,0,0,0.25);*/
+    }
+
+    thead {
+        color: white;
+        background-color: #34c4f9 !important;
+    }
+
+    .label {
+        color: #34c4f9;
+    }
+
+    h2 {
+        border-bottom: 3px solid #cc9900;
+        font: 2.75em/1.75em Georgia, serif;
+        color: #996600;
+    }
+    /* Input field */
+    .select2-selection__rendered {
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Around the search field */
+    .select2-search {
+        font-size: small;
+        font-weight: normal;
+    }
+
+        /* Search field */
+        .select2-search input {
+            font-size: medium;
+            font-weight: normal;
+        }
+
+    /* Each result */
+    .select2-results {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Higlighted (hover) result */
+    .select2-results__option--highlighted {
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Selected option */
+    .select2-results__option[aria-selected=true] {
+        background: #3ea211;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* My css class*/
+    .select2Style {
+        width: 200px;
+    }
+</style>
+
+<div id="progress" class="modal">
+    <div class="center">
+        <img src="~/Content/loader4.gif" />
+    </div>
+</div>
+
+<h2 style="color: #34c4f9 "> Tenant Ageing Report </h2>
+
+@using (Html.BeginForm("", "", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+{
+    <div class="container">
+        <br />
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.PropertyName, new { @class = "col-md-4 control-label" })
+                        <div class="col-md-8">
+                            @Html.TextBoxFor(model => model.PropertyId, new { @class = "form-control", @list = "_plist", @autocomplete = "off" })
+                            <datalist id="_plist"></datalist>
+                            @Html.ValidationMessageFor(model => model.PropertyId, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.AccountId, new { @class = "col-md-4 control-label" })
+                        <div class="col-md-8">
+                            @Html.TextBoxFor(model => model.AccountId, new { @class = "form-control", @list = "_alist", @autocomplete = "off" })
+                            <datalist id="_alist"></datalist>
+                            @Html.ValidationMessageFor(model => model.AccountId, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.Tenant, new { @class = "col-md-4 control-label" })
+                        <div class="col-md-8">
+                            @Html.TextBoxFor(model => model.TenantId, new { @class = "form-control", @list = "_tlist", @autocomplete = "off" })
+                            <datalist id="_tlist"></datalist>
+                            @Html.ValidationMessageFor(model => model.TenantId, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        @Html.LabelFor(m => m.ReportDate, new { @class = "col-md-4 control-label" })
+                        <div class="col-md-8">
+                            @Html.EditorFor(model => model.ReportDate, new { htmlAttributes = new { @class = "form-control ", required = "", @type = "Date", @placeholder = "dd-mm-yyyy" } })
+                            @Html.ValidationMessageFor(model => model.ReportDate, "", new { @class = "text-danger" })
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="col-md-offset-10 col-md-2">
+                    <div class="form-group">
+                        @*<button type="button" class="btn btn-primary" id="btExcel">Excel</button>*@
+                        <button type="button" class="btn btn-primary" id="btnok">Load</button>
+                        <button type="button" class="btn btn-primary" id="btnClose" name="Close">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/Scripts/FClient.js"></script>
+    <script src="~/Scripts/jquery-1.10.2.min.js"></script>
+
+
+    <link href="~/Content/toastr.min.css" rel="stylesheet" />
+    <script src="~/Scripts/toastr.js"></script>
+
+    <script>
+        var compId=@ViewBag.CompId;
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "500",
+            "hideDuration": "500",
+            "timeOut": "2500",
+            "extendedTimeOut": "500",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+
+       
+        var SelectedProperty = 0;
+        
+        $(window).on("load", function () {
+            debugger;
+            getSetPropertyForMastersField();
+            var date = new Date($.now());
+            var dateString = (date.getFullYear() + '-'
+                + ('0' + (date.getMonth() + 1)).slice(-2)
+                + '-' + ('0' + (date.getDate())).slice(-2));
+            $('#ReportDate').val(dateString);
+
+            $("#TenantId").on('keyup', function () {
+                TenantAutoComplete();
+            });
+            $("#PropertyId").on('keyup', function () {
+                PropertyAutoComplete();
+            });
+            $("#AccountId").on('keyup', function () {
+                AccountAutoComplete();
+            });
+            $("#PropertyId").on('focus', function () {
+                $("#PropertyId").select();
+            });
+            $("#TenantId").on('focus', function () {
+                $("#TenantId").select();
+            });
+            $("#AccountId").on('focus', function () {
+                $("#AccountId").select();
+            });
+            $("#PropertyId").on('focusout', function () {
+                if ($("#PropertyId").val() != "All" && SelectedProperty == 0) {
+                    $("#PropertyId").val('All')
+                }
+            });
+            $("#TenantId").on('focusout', function () {
+                if ($("#TenantId").val() != "All" && SelectedTenant == 0) {
+                    $("#TenantId").val('All')
+                }
+            });
+            $("#AccountId").on('focusout', function () {
+                if ($("#AccountId").val() != "All" && SelectedAccount == 0) {
+                    $("#AccountId").val('')
+                }
+            });
+            $("#_tlist").empty();
+            $("#_tlist").append($("<option data-value='0'>All</option>"));
+            $("#TenantId").val('All')
+            $("#_plist").empty();
+            $("#_plist").append($("<option data-value='0'>All</option>"));
+            $("#PropertyId").val('All')
+            $("#_alist").empty();
+        });
+        function TenantAutoComplete() {
+            $.ajax({
+                url: path + domain + '/Home/getTenantslist2',
+                cache: false,
+                type: "POST",
+                datatype: 'JSON',
+                async: true,
+                data: { cid: compId, searchtext: $("#TenantId").val(), Property: SelectedProperty},
+                success: function (response) {
+                    debugger
+                    SelectedTenant = getOptionId("TenantId", "_tlist") == "" ? "0" : getOptionId("TenantId", "_tlist");
+                    if (response == "[]") {
+                        if ($("#TenantId").val() != "All" && SelectedTenant == 0) {
+                           $("#TenantId").val('All')
+                        }
+                        else {
+                            $("#TenantId").select();
+                        }
+                    }
+                    $("#_tlist").empty();
+                    $("#_tlist").append($("<option data-value='0'>All</option>"));
+                    var obj = JSON.parse(response);
+                    $.each(obj, function (i, item) {
+                        $("#_tlist").append($("<option data-value=" + item.iMasterId + " >" + item.sName + "</option>"));
+                    });
+                },
+                error: function (err) {
+                    console.log(err)
+                }
+            })
+        }
+        var SelectedTenant = 0
+        function PropertyAutoComplete() {
+            $.ajax({
+                url: path + domain + '/Home/getPropertylist',
+                cache: false,
+                type: "POST",
+                datatype: 'JSON',
+                async: true,
+                data: { cid: compId, searchtext: $("#PropertyId").val(), TenantId: SelectedTenant },
+                success: function (response) {
+                    debugger
+                    SelectedProperty = getOptionId("PropertyId", "_plist") == "" ? "0" : getOptionId("PropertyId", "_plist");
+                    if (response == "[]") {
+                        if ($("#PropertyId").val() != "All" && SelectedProperty == 0) {
+                            $("#PropertyId").val('All')
+                        }
+                        else {
+                            $("#PropertyId").select();
+                        }
+                    }
+                    $("#_plist").empty();
+                    $("#_plist").append($("<option data-value='0'>All</option>"));
+                    var obj = JSON.parse(response);
+                    $.each(obj, function (i, item) {
+                        $("#_plist").append($("<option data-value=" + item.iMasterId + " >" + item.sName + "</option>"));
+                    });
+                },
+                error: function (err) {
+                    console.log(err)
+                }
+            })
+        }
+        var SelectedAccount = 0;
+        function AccountAutoComplete() {
+            $.ajax({
+                url: path + domain + '/Home/getAccountlist',
+                cache: false,
+                type: "POST",
+                datatype: 'JSON',
+                async: true,
+                data: { cid: compId, searchtext: $("#AccountId").val() },
+                success: function (response) {
+                    SelectedAccount = getOptionId("AccountId", "_alist") == "" ? "0" : getOptionId("AccountId", "_alist");
+                    if (response == "[]") {
+                        if ($("#AccountId").val() != "All" && SelectedAccount == 0) {
+                            $("#AccountId").val('')
+                        }
+                        else {
+                            $("#AccountId").select();
+                        }
+                    }
+                    $("#_alist").empty();
+                    var obj = JSON.parse(response);
+                    $.each(obj, function (i, item) {
+                        $("#_alist").append($("<option data-value=" + item.iMasterId + " >" + item.sName + "</option>"));
+                    });
+                },
+                error: function (err) {
+                    console.log(err)
+                }
+            })
+        }
+
+        function getOptionId(obj,list) {
+            var input_select = $("#"+obj+"").val();
+            var option_length = $("#"+list+" option").length;
+            var option_id = '';
+            for (var i = 0; i < option_length; i++) {
+                var option_value = $("#" + list +" option").eq(i).val();
+                if (input_select == option_value) {
+                    option_id = $("#" + list + " option").eq(i).attr('data-value');
+                    break;
+                }
+            }
+            return option_id;
+        }
+        var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
+        var domain ='@System.Web.Configuration.WebConfigurationManager.AppSettings["domain"]';
+
+        //----------------------------- report method calling ------------------------------------
+
+        $("#btnok").click(function () {
+            $("#progress").show();
+            debugger
+            var CompanyId=compId;
+
+            var ReportDate = $("#ReportDate").val();
+
+            if (SelectedAccount == 0) {
+                toastr.warning("Please Select An Account");
+            }
+            else {
+                debugger;
+                window.location.href = path + domain + "/Home/AgeingReport?CompanyId=" + CompanyId + "&ReportDate=" + ReportDate + "&Tenant=" + SelectedTenant + "&Property=" + SelectedProperty + "&Account=" + SelectedAccount + "&TenantName=" + $("#TenantId").val() + "&PropertyName=" + $("#PropertyId").val() + "&AccountName=" + $("#AccountId").val();
+            }
+        });
+
+
+
+        $('#btnClose').click(function () {
+            debugger;
+            Focus8WAPI.gotoHomePage();
+        });
+
+        //--------------------------------------------- Focus8W js file -------------------------------
+
+        function getSetPropertyForMastersField() {
+            // Focus8WAPI.getGlobalValue("fnGetValueCallBack1", "COMPANYID", 1);
+            Focus8WAPI.getGlobalValue("fnGetValueCallBack1", "", 1);
+
+        }
+
+        function fnGetValueCallBack1(objWrapperResult) {
+
+            var responseData = objWrapperResult.data;
+            if (objWrapperResult.requestType == 1) {
+                if (objWrapperResult.iRequestId == 1) {
+                    CCode = responseData.CompanyId;//this is the company id
+                }
+            }
+        }
+    </script>
+}
+
+

@@ -1,0 +1,377 @@
+﻿@model SOAReport.Models.LostRevFilter
+
+@{
+    ViewBag.Title = "LeaseRevIndex";
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+}
+
+
+<style>
+    #progress {
+        text-align: center;
+        z-index: 1000000;
+        overflow: auto;
+        height: 100%;
+    }
+
+    #load {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        z-index: 9999;
+        background: url("https://www.creditmutuel.fr/cmne/fr/banques/webservices/nswr/images/loading.gif") no-repeat center center rgba(0,0,0,0.26);
+        /*background:url("../../Content/Processing.gif") no-repeat center center rgba(0,0,0,0.25);*/
+    }
+
+    thead {
+        color: white;
+        background-color: #34c4f9 !important;
+    }
+
+    .label {
+        color: #34c4f9;
+    }
+
+    h2 {
+        border-bottom: 3px solid #cc9900;
+        font: 2.75em/1.75em Georgia, serif;
+        color: #996600;
+    }
+    /* Input field */
+    .select2-selection__rendered {
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Around the search field */
+    .select2-search {
+        font-size: small;
+        font-weight: normal;
+    }
+
+        /* Search field */
+        .select2-search input {
+            font-size: medium;
+            font-weight: normal;
+        }
+
+    /* Each result */
+    .select2-results {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Higlighted (hover) result */
+    .select2-results__option--highlighted {
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Selected option */
+    .select2-results__option[aria-selected=true] {
+        background: #3ea211;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* My css class*/
+    .select2Style {
+        width: 200px;
+    }
+</style>
+
+<div id="progress" class="modal">
+    <div class="center">
+        <img src="~/Content/loader4.gif" />
+    </div>
+</div>
+
+<h2 style="color: #34c4f9 "> Lease Rental Summary Report </h2>
+
+@using (Html.BeginForm("", "", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+{
+<div class="container">
+    <br />
+    <div class="row">
+        <div class="col-md-12">
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.Label("From Date", new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @Html.EditorFor(model => model.FromDate, new { htmlAttributes = new { @class = "form-control ", required = "", @type = "Date", @placeholder = "dd-mm-yyyy" } })
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.Label("To Date", new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @Html.EditorFor(model => model.ToDate, new { htmlAttributes = new { @class = "form-control ", required = "", @type = "Date", @placeholder = "dd-mm-yyyy" } })
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.Label("Property Group", new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @Html.TextBoxFor(model => model.PropertyGrp, new { @class = "form-control", @list = "_glist", @autocomplete = "off" })
+                        <datalist id="_glist"></datalist>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.Label("Property", new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @Html.TextBoxFor(model => model.Property, new { @class = "form-control", @list = "_plist", @autocomplete = "off" })
+                        <datalist id="_plist"></datalist>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-12">
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.Label("Unit", new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @Html.TextBoxFor(model => model.Unit, new { @class = "form-control", @list = "_ulist", @autocomplete = "off" })
+                        <datalist id="_ulist"></datalist>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <div class="col-md-8">
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="col-md-offset-10 col-md-2">
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" id="btnok">Load</button>
+                    <button type="button" class="btn btn-primary" id="btnClose" name="Close">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="searchResults">
+
+    </div>
+</div>
+}
+
+@section Scripts {
+    <script src="~/Scripts/FClient.js"></script>
+    <script src="~/Scripts/jquery-1.10.2.min.js"></script>
+    <link href="~/Content/toastr.min.css" rel="stylesheet" />
+    <script src="~/Scripts/toastr.js"></script>
+    <script>
+        var compId=@ViewBag.CompId;
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "500",
+            "hideDuration": "500",
+            "timeOut": "2500",
+            "extendedTimeOut": "500",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+        var SelectedPG = null;
+        var SelectedProp = null;
+        var SelectedUnit = null;
+        $(window).on("load", function () {
+            debugger;
+            var date = new Date($.now());
+            var dateString = (date.getFullYear() + '-'
+                + ('0' + (date.getMonth() + 1)).slice(-2)
+                + '-' + ('0' + (date.getDate())).slice(-2));
+            $('#FromDate').val(dateString);
+            $('#ToDate').val(dateString);
+            $('#PropertyGrp').change(function () {
+                debugger;
+                PropertyGrpSelectionChangeEvent();
+            });
+            $('#Property').change(function () {
+                debugger;
+                PropertySelectionChangeEvent();
+            });
+            $('#Unit').change(function () {
+                debugger;
+                UnitSelectionChangeEvent();
+            });
+            $("#_glist").empty();
+            $("#_plist").empty();
+            $("#_ulist").empty();
+            $("#PropertyGrp").on('keyup', function () {
+                var val = this.value;
+                PropertyGrpAutoComplete(val);
+            }).on('focus', function () { this.select();});
+            $("#Property").on('keyup', function () {
+                var val = this.value;
+                PropertyAutoComplete(val);
+            }).on('focus', function () { this.select(); });;
+            $("#Unit").on('keyup', function () {
+                var val = this.value;
+                UnitAutoComplete(val);
+            }).on('focus', function () { this.select(); });;
+        });
+        function PropertyGrpAutoComplete(val) {
+            $("#_glist").empty();
+            var _g = @Html.Raw(Json.Encode(@ViewBag.propertygrp));
+            $.each(_g, function (i, item) {
+                let str = item.Name.toUpperCase();
+                if (str.indexOf(val.toUpperCase().trim()) > -1) {
+                    $("#_glist").append($("<option data-value=" + item.Id + " >" + item.Name + "</option>"));
+                }
+            });
+        }
+        function PropertyGrpSelectionChangeEvent() {
+            debugger;
+            SelectedPG = getOptionId('PropertyGrp', '_glist');
+        }
+        function PropertyAutoComplete(val) {
+            debugger;
+            $("#_plist").empty();
+            var _p = @Html.Raw(Json.Encode(@ViewBag.property));
+            $.each(_p, function (i, item) {
+                let str = item.Name.toUpperCase();
+                if (SelectedPG != null) {
+                    if (item.FId == SelectedPG) {
+                        if (str.indexOf(val.toUpperCase().trim()) > -1) {
+                            $("#_plist").append($("<option data-value=" + item.Id + " >" + item.Name + "</option>"));
+                        }
+                    }
+                }
+                else {
+                    if (str.indexOf(val.toUpperCase().trim()) > -1) {
+                        $("#_plist").append($("<option data-value=" + item.Id + " >" + item.Name + "</option>"));
+                    }
+                }
+            });
+        }
+        function PropertySelectionChangeEvent() {
+            debugger;
+            SelectedProp = getOptionId('Property', '_plist');
+        }
+        function UnitAutoComplete(val) {
+            debugger;
+            $("#_ulist").empty();
+            var _u = @Html.Raw(Json.Encode(@ViewBag.unit));
+            $.each(_u, function (i, item) {
+                let str = item.Name.toUpperCase();
+                if (SelectedProp != null) {
+                    if (item.FId == SelectedProp) {
+                        if (str.indexOf(val.toUpperCase().trim()) > -1) {
+                            $("#_ulist").append($("<option data-value=" + item.Id + " >" + item.Name + "</option>"));
+                        }
+                    }
+                }
+                else {
+                    if (str.indexOf(val.toUpperCase().trim()) > -1) {
+                        $("#_ulist").append($("<option data-value=" + item.Id + " >" + item.Name + "</option>"));
+                    }
+                }
+            });
+        }
+        function UnitSelectionChangeEvent() {
+            debugger;
+            SelectedUnit = getOptionId('Unit', '_ulist');
+        }
+
+        function getOptionId(ele, list) {
+            debugger;
+            var option_id = null;
+            var input_select = $("#" + ele).val();
+            if (input_select != '') {
+                var option_length = $("#" + list + " option").length;
+                for (var i = 0; i < option_length; i++) {
+                    var option_value = $("option").eq(i).val();
+                    if (input_select == option_value) {
+                        option_id = $("option").eq(i).attr('data-value');
+                        break;
+                    }
+                }
+            }
+            return option_id;
+        }
+        var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
+        var domain ='@System.Web.Configuration.WebConfigurationManager.AppSettings["domain"]';
+
+        //----------------------------- report method calling ------------------------------------
+
+        $("#btnok").click(function () {
+            $("#progress").show();
+            debugger
+            var CompanyId=compId;
+            if ($("#FromDate").val() == "") {
+                toastr.warning("Please Select From Date");
+            }
+            else if ($("#ToDate").val() == "") {
+                toastr.warning("Please Select To Date");
+            }
+            var _objsearch = {
+                CompanyId: compId,
+                FromDate: $("#FromDate").val(),
+                ToDate: $("#ToDate").val(),
+                PropertyGrp: SelectedPG,
+                Property: SelectedProp,
+                Unit: SelectedUnit,
+                PropertyGrpName: SelectedPG == null ? "ALL" : $("#PropertyGrp").val(),
+                PropertyName: SelectedProp == null ? "ALL" : $("#Property").val(),
+                UnitName: SelectedUnit == null ? "ALL" : $("#Unit").val(),
+            };
+            debugger;
+             $.ajax({
+                 url: path + domain + '/Home/LeaseRevReport2',
+                dataType: "json",
+                type: "POST",
+                contentType: 'application/json; charset=utf-8',
+                data: JSON.stringify(_objsearch),
+                async: true,
+                processData: false,
+                cache: false,
+                 success: function (response) {
+                     $("#progress").hide();
+                     console.log(response, "Success")
+                     if (response == 'Success') {
+                         window.location.href = path + domain + "/Home/LeaseRevReport";
+                     }
+                     else{
+                         $("#searchResults").html('<span style="color:red;fond:bold">' + response+'</span>');
+                     }
+                },
+                 error: function (err) {
+                     $("#progress").hide();
+                    console.log(err)
+                }
+            })
+        });
+
+
+
+        $('#btnClose').click(function () {
+            debugger;
+            Focus8WAPI.gotoHomePage();
+        });
+
+
+    </script>
+}
+
