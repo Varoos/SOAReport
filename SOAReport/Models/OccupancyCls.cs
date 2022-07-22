@@ -49,6 +49,7 @@ namespace SOAReport.Models
         public decimal AnnualRent { get; set; }
         public decimal vacLoss { get; set; }
         public decimal UnAm_Amt { get; set; }
+        public int footer { get; set; }
     }
     public class OccupancyCls
     {

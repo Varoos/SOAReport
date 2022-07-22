@@ -22,7 +22,8 @@
 
         .subtotal {
             /*background-color:#0073AA !important;*/
-            color: black;
+            color: red;
+            font-weight:bolder;
         }
 
         #BaseCurrency {
@@ -269,7 +270,7 @@
         $(document).ready(function() {
             debugger
             $('#cid').val(compId);
-            $('#tableData').DataTable();
+            $('#tableData').DataTable({ "bSort": false });
             $("#btnPdf").click(function () {
                 ExportPdf();
             });

@@ -233,16 +233,29 @@
 
                                     if (list != null)
                                     {
+                                        decimal tlr = 0;
+                                        decimal ar= 0;
+                                        decimal tld= 0;
                                         foreach (var obj in list)
                                         {
-                                                        <tr align="center">
-                                                            <td style="text-align:center;">@obj.Property</td>
-                                                            <td style="text-align:center;">@obj.Unit</td>
-                                                            <td style="text-align:center;">@obj.AnnualRent.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.TotLostDays.ToString("#,##0")</td>
-                                                            <td style="text-align:center;">@obj.TotLostRev.ToString("#,##0.00")</td>
-                                                        </tr>
+                                            ar = ar + obj.AnnualRent;
+                                            tld = tld + obj.TotLostDays;
+                                            tlr = tlr + obj.TotLostRev;
+                                            <tr align="center">
+                                                <td style="text-align:left;">@obj.Property</td>
+                                                <td style="text-align:left;">@obj.Unit</td>
+                                                <td style="text-align:right;">@obj.AnnualRent.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.TotLostDays.ToString("#,##0")</td>
+                                                <td style="text-align:right;">@obj.TotLostRev.ToString("#,##0.00")</td>
+                                            </tr>
                                         }
+                                        <tr align="center" style="font-weight:bolder;color:red">
+                                            <td style="text-align:left;">Total</td>
+                                            <td style="text-align:center;"></td>
+                                            <td style="text-align:right;">@ar.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@tld.ToString("#,##0")</td>
+                                            <td style="text-align:right;">@tlr.ToString("#,##0.00")</td>
+                                        </tr>
                                     }
                                 }
                                 catch (Exception ex)
@@ -276,7 +289,7 @@
         var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
         $(document).ready(function() {
             debugger
-            $('#tableData').DataTable();
+            $('#tableData').DataTable({ bSort: false });
            
         });
 </script>

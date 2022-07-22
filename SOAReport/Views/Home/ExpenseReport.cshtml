@@ -252,22 +252,37 @@
 
                                     if (list != null)
                                     {
+                                        decimal tot = 0;
                                         foreach (var obj in list)
                                         {
+                                            tot = tot + @obj.Amt;
                                             <tr align="center">
-                                                <td style="text-align:center;">@obj.PropertyGrp</td>
-                                                <td style="text-align:center;">@obj.Property</td>
-                                                <td style="text-align:center;">@obj.Unit</td>
-                                                <td style="text-align:center;">@obj.UnitType</td>
-                                                <td style="text-align:center;">@obj.Usage</td>
-                                                <td style="text-align:center;">@obj.Sqft</td>
-                                                <td style="text-align:center;">@obj.FromDate</td>
-                                                <td style="text-align:center;">@obj.ToDate</td>
-                                                <td style="text-align:center;">@obj.AccPrdDays.ToString("#,##0")</td>
-                                                <td style="text-align:center;">@obj.Account</td>
+                                                <td style="text-align:left;">@obj.PropertyGrp</td>
+                                                <td style="text-align:left;">@obj.Property</td>
+                                                <td style="text-align:left;">@obj.Unit</td>
+                                                <td style="text-align:left;">@obj.UnitType</td>
+                                                <td style="text-align:left;">@obj.Usage</td>
+                                                <td style="text-align:left;">@obj.Sqft</td>
+                                                <td style="text-align:left;">@obj.FromDate</td>
+                                                <td style="text-align:left;">@obj.ToDate</td>
+                                                <td style="text-align:left;">@obj.AccPrdDays.ToString("#,##0")</td>
+                                                <td style="text-align:left;">@obj.Account</td>
                                                 <td style="text-align:right;">@obj.Amt.ToString("#,##0.00")</td>
                                             </tr>
                                         }
+                                        <tr align="center" style="font-weight:bolder;color:red">
+                                            <td style="text-align:left;">Total</td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:left;"></td>
+                                            <td style="text-align:right;">@tot.ToString("#,##0.00")</td>
+                                        </tr>
                                     }
                                 }
                                 catch (Exception ex)
@@ -301,7 +316,7 @@
         var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
         $(document).ready(function() {
             debugger
-            $('#tableData').DataTable();
+            $('#tableData').DataTable({ "bSort": false });
             
         });
 </script>

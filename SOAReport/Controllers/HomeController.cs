@@ -800,24 +800,37 @@ namespace SOAReport.Controllers
                 int c = 2;
 
                 #region TableLoop
+                decimal dr = 0;
+                decimal cr = 0;
+                decimal bal = 0;
                 foreach (var obj in _list)
                 {
                     c = 2;
                     r++;
+                    dr = dr + obj.Debit;
+                    cr = cr + obj.Credit;
+                    bal = bal + obj.balance;
                     ws.Cell(r, c++).Value = obj.Account;
                     ws.Cell(r, c++).Value = obj.Debit.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.Credit.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.balance.ToString("N", new CultureInfo("en-US"));
                 }
-
+                c = 2;
+                r = r + 1;
+                ws.Cell(r, c++).Value = "Total";
+                ws.Cell(r, c++).Value =dr.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = cr.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = bal.ToString("N", new CultureInfo("en-US"));
                 #endregion
 
                 TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(r, 5));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                ws.Range(ws.Cell(7, 2), ws.Cell(r, 2)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                ws.Range(ws.Cell(7, 2), ws.Cell(r, 2)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
                 ws.Range(ws.Cell(7, 3), ws.Cell(r, 5)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(7, 3), ws.Cell(r, 5)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 5)).Style.Font.Bold = true;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 5)).Style.Font.FontColor = XLColor.FromArgb(255, 51, 51);
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())
@@ -1195,7 +1208,7 @@ namespace SOAReport.Controllers
                     {
                         DBClass.SetLog("Getting Report View. OccupanyReport DataSet Table count >0 ");
                         List<OccupancyList> listobj = new List<OccupancyList>();
-                        if (ds1.Tables[0].Rows.Count > 0)
+                        if (ds1.Tables[0].Rows.Count > 1)
                         {
                             foreach (DataRow dr1 in ds1.Tables[0].Rows)
                             {
@@ -1223,9 +1236,9 @@ namespace SOAReport.Controllers
                                     AnnualRent = Convert.ToDecimal(dr1["AnnualRent"].ToString()),
                                     vacLoss = Convert.ToDecimal(dr1["rentloss"].ToString()),
                                     UnAm_Amt = Convert.ToDecimal(dr1["UnAm_rent"].ToString()),
+                                    footer = Convert.ToInt32(dr1["footer"].ToString()),
                                 });
                             }
-
                             _cls._list = listobj;
                             Session["OccupanyData"] = _cls;
                             if (_cls == null)
@@ -1408,10 +1421,10 @@ namespace SOAReport.Controllers
                     ws.Cell(r, c++).Value = obj.Unit;
                     ws.Cell(r, c++).Value = obj.UnitType;
                     ws.Cell(r, c++).Value = obj.Usage;
-                    ws.Cell(r, c++).Value = obj.Sqft.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = obj.footer==1?"": obj.Sqft.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.FromDate;
                     ws.Cell(r, c++).Value = obj.ToDate;
-                    ws.Cell(r, c++).Value = obj.AccPrdDays.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = obj.footer == 1 ? "" : obj.AccPrdDays.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.ContractAmt.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.AmFrom;
                     ws.Cell(r, c++).Value = obj.AmTo;
@@ -1431,14 +1444,23 @@ namespace SOAReport.Controllers
                 TableRange = ws.Range(ws.Cell(10, 2), ws.Cell(r, 23));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
 
                 ws.Range(ws.Cell(10, 8), ws.Cell(r, 8)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 8), ws.Cell(r, 8)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(10, 11), ws.Cell(r, 11)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(10, 11), ws.Cell(r, 11)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(10, 12), ws.Cell(r, 12)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 12), ws.Cell(r, 12)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(10, 15), ws.Cell(r, 15)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(10, 15), ws.Cell(r, 15)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(10, 16), ws.Cell(r, 16)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 16), ws.Cell(r, 16)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(10, 18), ws.Cell(r, 23)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 18), ws.Cell(r, 23)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 23)).Style.Font.FontColor = XLColor.FromArgb(255, 51, 51);
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 23)).Style.Font.Bold = true;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 23)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())
@@ -1637,10 +1659,12 @@ namespace SOAReport.Controllers
                 int c = 2;
 
                 #region TableLoop
+                decimal tot = 0;
                 foreach (var obj in _list)
                 {
                     c = 2;
                     r++;
+                    tot = tot + obj.Amt;
                     ws.Cell(r, c++).Value = obj.PropertyGrp;
                     ws.Cell(r, c++).Value = obj.Property;
                     ws.Cell(r, c++).Value = obj.Unit;
@@ -1653,16 +1677,32 @@ namespace SOAReport.Controllers
                     ws.Cell(r, c++).Value = obj.Account;
                     ws.Cell(r, c++).Value = obj.Amt.ToString("N", new CultureInfo("en-US"));
                 }
-
+                c = 2;
+                r = r + 1;
+                ws.Cell(r, c++).Value = "Total";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value ="";
+                ws.Cell(r, c++).Value = tot.ToString("N", new CultureInfo("en-US"));
                 #endregion
 
                 TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(r, 12));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
 
                 ws.Range(ws.Cell(8, 10), ws.Cell(r, 10)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(8, 10), ws.Cell(r, 10)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(8, 12), ws.Cell(r, 12)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 12), ws.Cell(r, 12)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 12)).Style.Font.Bold = true;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 12)).Style.Font.FontColor = XLColor.FromArgb(255, 51, 51);
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())
@@ -1887,10 +1927,40 @@ namespace SOAReport.Controllers
                 int c = 2;
 
                 #region TableLoop
+                decimal ar = 0;
+                decimal tld = 0;
+                decimal tlr = 0;
+                decimal jan = 0;
+                decimal feb = 0;
+                decimal mar = 0;
+                decimal apr = 0;
+                decimal may = 0;
+                decimal jun = 0;
+                decimal jul = 0;
+                decimal aug = 0;
+                decimal sep = 0;
+                decimal oct = 0;
+                decimal nov = 0;
+                decimal dec = 0;
                 foreach (var obj in _list)
                 {
                     c = 2;
                     r++;
+                    ar = ar + obj.AnnualRent;
+                    tld = tld + obj.TotLostDays;
+                    tlr = tlr + obj.TotLostRev;
+                    jan = jan + obj.Jan;
+                    feb = feb + obj.Feb;
+                    mar = mar + obj.Mar;
+                    apr = apr + obj.Apr;
+                    may = may + obj.May;
+                    jun = jun + obj.Jun;
+                    jul = jul + obj.Jul;
+                    aug = aug + obj.Aug;
+                    sep = sep + obj.Sep;
+                    oct = oct + obj.Oct;
+                    nov = nov + obj.Nov;
+                    dec = dec + obj.Dec;
                     ws.Cell(r, c++).Value = obj.Property;
                     ws.Cell(r, c++).Value = obj.Unit;
                     ws.Cell(r, c++).Value = obj.AnnualRent.ToString("N", new CultureInfo("en-US"));
@@ -1911,17 +1981,41 @@ namespace SOAReport.Controllers
                     ws.Cell(r, c++).Value = obj.Nov.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.Dec.ToString("N", new CultureInfo("en-US"));
                 }
-
+                c = 2;r = r + 1;
+                ws.Cell(r, c++).Value = "Total";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = ar.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = tld.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = tlr.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = jan.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = feb.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = mar.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = apr.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = may.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = jun.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = jul.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = aug.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = sep.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = oct.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = nov.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = dec.ToString("N", new CultureInfo("en-US"));
                 #endregion
 
                 TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(r, 20));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
 
                 ws.Range(ws.Cell(8, 4), ws.Cell(r, 4)).Style.NumberFormat.Format = "0.00";
                 ws.Range(ws.Cell(8, 7), ws.Cell(r, 7)).Style.NumberFormat.Format = "0";
                 ws.Range(ws.Cell(8, 8), ws.Cell(r, 20)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 4), ws.Cell(r, 4)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(8, 7), ws.Cell(r, 7)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(8, 8), ws.Cell(r, 20)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 20)).Style.Font.Bold = true;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 20)).Style.Font.FontColor = XLColor.Red;
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())
@@ -2100,27 +2194,44 @@ namespace SOAReport.Controllers
                 int c = 2;
 
                 #region TableLoop
+                decimal tlr = 0;
+                decimal ar = 0;
+                decimal tld = 0;
                 foreach (var obj in _list)
                 {
                     c = 2;
                     r++;
+                    ar = ar + obj.AnnualRent;
+                    tld = tld + obj.TotLostDays;
+                    tlr = tlr + obj.TotLostRev;
                     ws.Cell(r, c++).Value = obj.Property;
                     ws.Cell(r, c++).Value = obj.Unit;
                     ws.Cell(r, c++).Value = obj.AnnualRent.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.TotLostDays.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.TotLostRev.ToString("N", new CultureInfo("en-US"));
                 }
-
+                c = 2;
+                r=r+1;
+                ws.Cell(r, c++).Value = "Total";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = ar.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = tld.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = tlr.ToString("N", new CultureInfo("en-US"));
                 #endregion
 
                 TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(r, 6));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
 
                 ws.Range(ws.Cell(8, 4), ws.Cell(r, 4)).Style.NumberFormat.Format = "0.00";
                 ws.Range(ws.Cell(8, 5), ws.Cell(r, 5)).Style.NumberFormat.Format = "0";
                 ws.Range(ws.Cell(8, 6), ws.Cell(r, 6)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 4), ws.Cell(r, 4)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(8, 5), ws.Cell(r, 5)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(8, 6), ws.Cell(r, 6)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 6)).Style.Font.Bold = true;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 6)).Style.Font.FontColor = XLColor.Red;
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())
@@ -2172,7 +2283,7 @@ namespace SOAReport.Controllers
                         if (ds1.Tables[0].Rows.Count > 0)
                         {
                             _cls._filter.FromDate = ds1.Tables[0].Rows[0]["Fromdate"].ToString();
-                            _cls._filter.FromDate = ds1.Tables[0].Rows[0]["Todate"].ToString();
+                            _cls._filter.ToDate = ds1.Tables[0].Rows[0]["Todate"].ToString();
                             foreach (DataRow dr1 in ds1.Tables[0].Rows)
                             {
                                 listobj.Add(new LeaseRevList
@@ -2348,10 +2459,28 @@ namespace SOAReport.Controllers
                 int c = 2;
 
                 #region TableLoop
+                decimal cv = 0;
+                decimal tc = 0;
+                decimal dr = 0;
+                decimal trd = 0;
+                decimal a = 0;
+                decimal d = 0;
+                decimal p = 0;
+                decimal s = 0;
+                decimal o = 0;
                 foreach (var obj in _list)
                 {
                     c = 2;
                     r++;
+                    cv = cv + obj.ContractValue;
+                    tc = tc + obj.TotContractDays;
+                    dr = dr + obj.DayRent;
+                    trd = trd + obj.TotRevDays;
+                    a = a + obj.Am_Amt;
+                    d = d + obj.DeferredVal;
+                    p = p + obj.PDC;
+                    s = s + obj.Security;
+                    o = o + obj.OtherIncome;
                     ws.Cell(r, c++).Value = obj.TCNo;
                     ws.Cell(r, c++).Value = obj.Status;
                     ws.Cell(r, c++).Value = obj.Tenant;
@@ -2373,19 +2502,47 @@ namespace SOAReport.Controllers
                     ws.Cell(r, c++).Value = obj.OtherIncome.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.TerminationDate;
                 }
-
+                c = 2;
+                r = r + 1;
+                ws.Cell(r, c++).Value = "Total";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = cv.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = tc.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = dr.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = trd.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = a.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = d.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = p.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = s.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = o.ToString("N", new CultureInfo("en-US"));
+                ws.Cell(r, c++).Value = "";
                 #endregion
 
                 TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(r, 21));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
 
                 ws.Range(ws.Cell(8, 9), ws.Cell(r, 9)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 9), ws.Cell(r, 9)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(8, 13), ws.Cell(r, 13)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(8, 13), ws.Cell(r, 13)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(8, 15), ws.Cell(r, 15)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(8, 15), ws.Cell(r, 15)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(8, 14), ws.Cell(r, 14)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 14), ws.Cell(r, 14)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(8, 16), ws.Cell(r, 20)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 16), ws.Cell(r, 20)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 20)).Style.Font.Bold = true;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 20)).Style.Font.FontColor = XLColor.FromArgb(255, 51, 51);
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())

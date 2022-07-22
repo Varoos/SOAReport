@@ -239,6 +239,9 @@
                     <table class="table table-bordered table-striped" border="1" id="tableData">
                         <thead class="thead-dark">
                             <tr id="tableHead">
+                                <th style="display:none">
+                                    
+                                </th>
                                 <th style="text-align:center;">
                                     Property Group
                                 </th>
@@ -316,38 +319,71 @@
                                     {
                                         foreach (var obj in list)
                                         {
-                                            <tr align="center">
-                                                <td style="text-align:center;">@obj.PropertyGrp</td>
-                                                <td style="text-align:center;">@obj.Property</td>
-                                                <td style="text-align:center;">@obj.TCNo</td>
-                                                <td style="text-align:center;">@obj.Unit</td>
-                                                <td style="text-align:center;">@obj.UnitType</td>
-                                                <td style="text-align:center;">@obj.Usage</td>
-                                                <td style="text-align:center;">@obj.Sqft.ToString("#,##0.00")</td>
-                                                <td style="text-align:center;">@obj.FromDate</td>
-                                                <td style="text-align:center;">@obj.ToDate</td>
-                                                <td style="text-align:center;">@obj.AccPrdDays.ToString("#,##0")</td>
-                                                <td style="text-align:center;">@obj.ContractAmt.ToString("#,##0.00")</td>
-                                                <td style="text-align:center;">@obj.AmFrom</td>
-                                                <td style="text-align:center;">@obj.AmTo</td>
-                                                <td style="text-align:center;">@obj.AmDays.ToString("#,##0")</td>
-                                                <td style="text-align:right;">@obj.AmAmt.ToString("#,##0.00")</td>
-                                                <td style="text-align:center;">@obj.Status</td>
-                                                <td style="text-align:right;">@obj.dayRent.ToString("#,##0.00")</td>
-                                                <td style="text-align:right;">@obj.sqRent.ToString("#,##0.00")</td>
-                                                <td style="text-align:center;">@obj.vacdays.ToString("#,##0")</td>
-                                                <td style="text-align:right;">@obj.AnnualRent.ToString("#,##0.00")</td>
-                                                <td style="text-align:right;">@obj.vacLoss.ToString("#,##0.00")</td>
-                                                <td style="text-align:right;">@obj.UnAm_Amt.ToString("#,##0.00")</td>
-                                            </tr>
+                                            if (obj.footer == 1)
+                                            {
+                                                        <tr align="center" style="font-weight:bolder;color:red" class="footer">
+                                                            <td style="display:none">@obj.footer</td>
+                                                            <td style="text-align:center;">Total</td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:right;">@obj.ContractAmt.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:right;">@obj.AmDays.ToString("#,##0")</td>
+                                                            <td style="text-align:right;">@obj.AmAmt.ToString("#,##0.00")</td>
+                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:right;">@obj.dayRent.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.sqRent.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.vacdays.ToString("#,##0")</td>
+                                                            <td style="text-align:right;">@obj.AnnualRent.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.vacLoss.ToString("#,##0.00")</td>
+                                                            <td style="text-align:right;">@obj.UnAm_Amt.ToString("#,##0.00")</td>
+                                                        </tr>
+                                            }
+                                            else
+                                            {
+                        <tr align="center">
+                            <td style="display:none">@obj.footer</td>
+                            <td style="text-align:left;">@obj.PropertyGrp</td>
+                            <td style="text-align:left;">@obj.Property</td>
+                            <td style="text-align:left;">@obj.TCNo</td>
+                            <td style="text-align:left;">@obj.Unit</td>
+                            <td style="text-align:left;">@obj.UnitType</td>
+                            <td style="text-align:left;">@obj.Usage</td>
+                            <td style="text-align:right;">@obj.Sqft.ToString("#,##0.00")</td>
+                            <td style="text-align:left;">@obj.FromDate</td>
+                            <td style="text-align:left;">@obj.ToDate</td>
+                            <td style="text-align:right;">@obj.AccPrdDays.ToString("#,##0")</td>
+                            <td style="text-align:right;">@obj.ContractAmt.ToString("#,##0.00")</td>
+                            <td style="text-align:left;">@obj.AmFrom</td>
+                            <td style="text-align:left;">@obj.AmTo</td>
+                            <td style="text-align:right;">@obj.AmDays.ToString("#,##0")</td>
+                            <td style="text-align:right;">@obj.AmAmt.ToString("#,##0.00")</td>
+                            <td style="text-align:left;">@obj.Status</td>
+                            <td style="text-align:right;">@obj.dayRent.ToString("#,##0.00")</td>
+                            <td style="text-align:right;">@obj.sqRent.ToString("#,##0.00")</td>
+                            <td style="text-align:right;">@obj.vacdays.ToString("#,##0")</td>
+                            <td style="text-align:right;">@obj.AnnualRent.ToString("#,##0.00")</td>
+                            <td style="text-align:right;">@obj.vacLoss.ToString("#,##0.00")</td>
+                            <td style="text-align:right;">@obj.UnAm_Amt.ToString("#,##0.00")</td>
+                        </tr>
+                                                }
+                                            }
                                         }
                                     }
+                                    catch (Exception ex)
+                                    {
+                                        //alert(ex.Message);
+                                    }
+
                                 }
-                                catch (Exception ex)
-                                {
-                                    //alert(ex.Message);
-                                }
-                            }
                         </tbody>
                     </table>
                 </div>
@@ -374,7 +410,7 @@
         var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
         $(document).ready(function() {
             debugger
-            $('#tableData').DataTable();
+            $('#tableData').DataTable({ "bSort": false });
         });
 </script>
 @Scripts.Render("~/bundles/jqueryval")
