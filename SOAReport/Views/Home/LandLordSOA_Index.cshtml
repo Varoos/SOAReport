@@ -1,0 +1,297 @@
+﻿@model SOAReport.Models.Search
+
+@{
+    ViewBag.Title = "LandLordSOA_Index";
+    Layout = "~/Views/Shared/_UserLayout.cshtml";
+}
+
+
+<style>
+    #progress {
+        text-align: center;
+        z-index: 1000000;
+        overflow: auto;
+        height: 100%;
+    }
+
+    #load {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+        z-index: 9999;
+        background: url("https://www.creditmutuel.fr/cmne/fr/banques/webservices/nswr/images/loading.gif") no-repeat center center rgba(0,0,0,0.26);
+        /*background:url("../../Content/Processing.gif") no-repeat center center rgba(0,0,0,0.25);*/
+    }
+
+    thead {
+        color: white;
+        background-color: #34c4f9 !important;
+    }
+
+    .label {
+        color: #34c4f9;
+    }
+
+    h2 {
+        border-bottom: 3px solid #cc9900;
+        font: 2.75em/1.75em Georgia, serif;
+        color: #996600;
+    }
+    /* Input field */
+    .select2-selection__rendered {
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Around the search field */
+    .select2-search {
+        font-size: small;
+        font-weight: normal;
+    }
+
+        /* Search field */
+        .select2-search input {
+            font-size: medium;
+            font-weight: normal;
+        }
+
+    /* Each result */
+    .select2-results {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Higlighted (hover) result */
+    .select2-results__option--highlighted {
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* Selected option */
+    .select2-results__option[aria-selected=true] {
+        background: #3ea211;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: medium;
+        font-weight: normal;
+    }
+
+    /* My css class*/
+    .select2Style {
+        width: 200px;
+    }
+</style>
+
+<div id="progress" class="modal">
+    <div class="center">
+        <img src="~/Content/loader4.gif" />
+    </div>
+</div>
+
+<h2 style="color: #34c4f9 "> Land Lord SOA </h2>
+
+@using (Html.BeginForm("", "", FormMethod.Post, new { @class = "form-horizontal", role = "form" }))
+{
+<div class="container">
+    <br />
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.Label("Account", new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @*@Html.DropDownListFor(model => model.TenantId, new SelectList(ViewBag.Tenants, "Value", "Text"), new { @class = "form-control select2Style", })*@
+                        @Html.TextBoxFor(model => model.TenantId, new { @class = "form-control", @list = "_tlist", @autocomplete = "off" })
+                        <datalist id="_tlist"></datalist>
+                        @Html.ValidationMessageFor(model => model.TenantId, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    @Html.LabelFor(m => m.ReportDate, new { @class = "col-md-4 control-label" })
+                    <div class="col-md-8">
+                        @Html.EditorFor(model => model.ReportDate, new { htmlAttributes = new { @class = "form-control ", required = "", @type = "Date", @placeholder = "dd-mm-yyyy" } })
+                        @Html.ValidationMessageFor(model => model.ReportDate, "", new { @class = "text-danger" })
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="col-md-offset-10 col-md-2">
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" id="btnok">Load</button>
+                    <button type="button" class="btn btn-primary" id="btnClose" name="Close">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="searchResults">
+
+    </div>
+</div>
+}
+
+@section Scripts {
+    <script src="~/Scripts/FClient.js"></script>
+    <script src="~/Scripts/jquery-1.10.2.min.js"></script>
+
+
+    <link href="~/Content/toastr.min.css" rel="stylesheet" />
+    <script src="~/Scripts/toastr.js"></script>
+
+    <script>
+        var compId=@ViewBag.CompId;
+        toastr.options = {
+            "closeButton": true,
+            "debug": false,
+            "newestOnTop": true,
+            "progressBar": true,
+            "positionClass": "toast-top-right",
+            "preventDuplicates": false,
+            "onclick": null,
+            "showDuration": "500",
+            "hideDuration": "500",
+            "timeOut": "2500",
+            "extendedTimeOut": "500",
+            "showEasing": "swing",
+            "hideEasing": "linear",
+            "showMethod": "fadeIn",
+            "hideMethod": "fadeOut"
+        };
+        var SelectedTenantCode = null;
+        function TenantSelectionChangeEvent() {
+            debugger;
+            var SelectedTenant = getOptionId();
+
+        }
+        $(window).on("load", function () {
+            debugger;
+            getSetPropertyForMastersField();
+            var date = new Date($.now());
+            var dateString = (date.getFullYear() + '-'
+                + ('0' + (date.getMonth() + 1)).slice(-2)
+                + '-' + ('0' + (date.getDate())).slice(-2));
+            $('#ReportDate').val(dateString);
+            $('#TenantId').change(function () {
+                debugger;
+                TenantSelectionChangeEvent();
+            });
+            $("#TenantId").on('keyup', function () {
+                var val = this.value;
+                TenantAutoComplete();
+            });
+            $("#_tlist").empty();
+           
+        });
+        var tenants;
+        function TenantAutoComplete() {
+            debugger;
+            $.ajax({
+                url: path + domain + '/Home/getTenantslist3',
+                cache: false,
+                type: "POST",
+                datatype: 'JSON',
+                async: true,
+                data: { cid: compId, searchtext: $("#TenantId").val() },
+                success: function (response) {
+                    debugger
+                    $("#_tlist").empty();
+                    tenants = JSON.parse(response);
+                    $.each(tenants, function (i, item) {
+                        $("#_tlist").append($("<option data-value=" + item.iMasterId + " >" + item.sName + "</option>"));
+                    });
+                },
+                error: function (err) {
+                    console.log(err)
+                }
+            })
+        }
+
+        function getOptionId() {
+            debugger;
+            var input_select = $("#TenantId").val();
+            var option_length = $("#_tlist option").length;
+            var option_id = '';
+            for (var j = 0; j < tenants.length; j++) {
+                debugger;
+                var option_value = tenants[j].sName;
+                if (input_select == option_value) {
+                    option_id = tenants[j].iMasterId;
+                    SelectedTenantCode = tenants[j].sCode;
+                    break;
+                }
+            }
+            return option_id;
+        }
+          
+            
+        var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
+        var domain ='@System.Web.Configuration.WebConfigurationManager.AppSettings["domain"]';
+
+        //----------------------------- report method calling ------------------------------------
+
+        $("#btnok").click(function () {
+            $("#progress").show();
+            debugger
+            var CompanyId=compId;
+
+            var ReportDate = $("#ReportDate").val();
+            debugger;
+            var url = path + domain + "/Home/LandLordReport2?CompanyId=" + CompanyId + "&ReportDate=" + ReportDate + "&Tenant=" + SelectedTenantCode;
+            $.ajax({
+                url: url,
+                dataType: "json",
+                type: "POST",
+                contentType: 'application/json; charset=utf-8',
+                async: true,
+                processData: false,
+                cache: false,
+                success: function (response) {
+                    $("#progress").hide();
+                    console.log(response, "Success")
+                    if (response == 'Success') {
+                        window.location.href = path + domain + "/Home/LandLordReport";
+                    }
+                    else {
+                        $("#searchResults").html('<span style="color:red;fond:bold">' + response + '</span>');
+                    }
+                },
+                error: function (err) {
+                    $("#progress").hide();
+                    console.log(err)
+                }
+            })
+        });
+
+
+
+        $('#btnClose').click(function () {
+            debugger;
+            Focus8WAPI.gotoHomePage();
+        });
+
+        //--------------------------------------------- Focus8W js file -------------------------------
+
+        function getSetPropertyForMastersField() {
+            // Focus8WAPI.getGlobalValue("fnGetValueCallBack1", "COMPANYID", 1);
+            Focus8WAPI.getGlobalValue("fnGetValueCallBack1", "", 1);
+
+        }
+
+        function fnGetValueCallBack1(objWrapperResult) {
+
+            var responseData = objWrapperResult.data;
+            if (objWrapperResult.requestType == 1) {
+                if (objWrapperResult.iRequestId == 1) {
+                    CCode = responseData.CompanyId;//this is the company id
+                }
+            }
+        }
+    </script>
+}
+

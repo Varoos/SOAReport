@@ -47,8 +47,8 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ClosedXML, Version=0.95.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\ClosedXML.0.95.4\lib\net46\ClosedXML.dll</HintPath>
+    <Reference Include="ClosedXML">
+      <HintPath>..\PublishFiles\bin\ClosedXML.dll</HintPath>
     </Reference>
     <Reference Include="CrystalDecisions.CrystalReports.Engine, Version=13.0.3500.0, Culture=neutral, PublicKeyToken=692fbea5521e1304, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -269,6 +269,7 @@
     <Compile Include="Models\LostRevDetCls.cs" />
     <Compile Include="Models\ExpenseCls.cs" />
     <Compile Include="Models\OccupancyCls.cs" />
+    <Compile Include="Models\LandLordSOA.cs" />
     <Compile Include="Models\ReportData.cs" />
     <Compile Include="Models\Search.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -364,6 +365,8 @@
     <Content Include="Views\Home\LeaseRevReport.cshtml" />
     <Content Include="Views\Home\OSIndex.cshtml" />
     <Content Include="Views\Home\OSReport.cshtml" />
+    <Content Include="Views\Home\LandLordSOA_Index.cshtml" />
+    <Content Include="Views\Home\LandLordReport.cshtml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />

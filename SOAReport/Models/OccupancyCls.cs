@@ -49,7 +49,12 @@ namespace SOAReport.Models
         public decimal AnnualRent { get; set; }
         public decimal vacLoss { get; set; }
         public decimal UnAm_Amt { get; set; }
-        public int footer { get; set; }
+        public int StayedDays { get; set; }
+        public string TCStartDate { get; set; }
+        public string TCEndDate { get; set; }
+        public decimal StayedAmortizedValue { get; set; }
+        public decimal TotalAmortizedValue { get; set; }
+        public decimal Unearnedremaining { get; set; }
     }
     public class OccupancyCls
     {

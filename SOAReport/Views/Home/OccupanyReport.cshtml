@@ -239,9 +239,6 @@
                     <table class="table table-bordered table-striped" border="1" id="tableData">
                         <thead class="thead-dark">
                             <tr id="tableHead">
-                                <th style="display:none">
-                                    
-                                </th>
                                 <th style="text-align:center;">
                                     Property Group
                                 </th>
@@ -273,6 +270,15 @@
                                     Accounting Period Days
                                 </th>
                                 <th style="text-align:center;">
+                                    TC Start Date
+                                </th>
+                                <th style="text-align:center;">
+                                    TC End Date
+                                </th>
+                                <th style="text-align:center;">
+                                    No of Days Stayed
+                                </th>
+                                <th style="text-align:center;">
                                     Contract Value (tc no value)
                                 </th>
                                 <th style="text-align:center;">
@@ -286,6 +292,15 @@
                                 </th>
                                 <th style="text-align:center;">
                                     Amortised Rent Amount
+                                </th>
+                                <th style="text-align:center;">
+                                    Stayed Amortized Value
+                                </th>
+                                @*<th style="text-align:center;">
+                                    Total Amortized Value
+                                </th>*@
+                                <th style="text-align:center;">
+                                    Unearned Remaining
                                 </th>
                                 <th style="text-align:center;">
                                     Status (Leased / Not-leased) for the period
@@ -317,28 +332,57 @@
 
                                     if (list != null)
                                     {
+                                        decimal ca = 0;
+                                        int amd = 0;
+                                        decimal ama = 0;
+                                        decimal dr = 0;
+                                        decimal sqr = 0;
+                                        decimal vd = 0;
+                                        decimal ar = 0;
+                                        decimal vl = 0;
+                                        decimal ua = 0;
+                                        int sd = 0;
+                                        decimal sav = 0;
+                                        decimal tav = 0;
+                                        decimal uer = 0;
                                         foreach (var obj in list)
                                         {
-                                            if (obj.footer == 1)
-                                            {
-                                                        <tr align="center" style="font-weight:bolder;color:red" class="footer">
-                                                            <td style="display:none">@obj.footer</td>
-                                                            <td style="text-align:center;">Total</td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
+                                            ca = ca + obj.ContractAmt;
+                                            amd = amd + obj.AmDays;
+                                            ama = ama + obj.AmAmt;
+                                            dr = dr + obj.dayRent;
+                                            sqr = sqr + obj.sqRent;
+                                            vd = vd + obj.vacdays;
+                                            ar = ar + obj.AnnualRent;
+                                            vl = vl + obj.vacLoss;
+                                            ua = ua + obj.UnAm_Amt;
+                                            sd = sd + obj.StayedDays;
+                                            sav = sav+obj.StayedAmortizedValue;
+                                            tav = tav+obj.TotalAmortizedValue;
+                                            uer = uer+obj.Unearnedremaining;
+                                                        <tr align="center">
+                                                            <td style="text-align:left;">@obj.PropertyGrp</td>
+                                                            <td style="text-align:left;">@obj.Property</td>
+                                                            <td style="text-align:left;">@obj.TCNo</td>
+                                                            <td style="text-align:left;">@obj.Unit</td>
+                                                            <td style="text-align:left;">@obj.UnitType</td>
+                                                            <td style="text-align:left;">@obj.Usage</td>
+                                                            <td style="text-align:right;">@obj.Sqft.ToString("#,##0.00")</td>
+                                                            <td style="text-align:left;">@obj.FromDate</td>
+                                                            <td style="text-align:left;">@obj.ToDate</td>
+                                                            <td style="text-align:right;">@obj.AccPrdDays.ToString("#,##0")</td>
+                                                            <td style="text-align:left;">@obj.TCStartDate</td>
+                                                            <td style="text-align:left;">@obj.TCEndDate</td>
+                                                            <td style="text-align:right;">@obj.StayedDays.ToString("#,##0")</td>
                                                             <td style="text-align:right;">@obj.ContractAmt.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;"></td>
-                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:left;">@obj.AmFrom</td>
+                                                            <td style="text-align:left;">@obj.AmTo</td>
                                                             <td style="text-align:right;">@obj.AmDays.ToString("#,##0")</td>
                                                             <td style="text-align:right;">@obj.AmAmt.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;"></td>
+                                                            <td style="text-align:right;">@obj.StayedAmortizedValue.ToString("#,##0.00")</td>
+                                                            @*<td style="text-align:right;">@obj.TotalAmortizedValue.ToString("#,##0.00")</td>*@
+                                                            <td style="text-align:right;">@obj.Unearnedremaining.ToString("#,##0.00")</td>
+                                                            <td style="text-align:left;">@obj.Status</td>
                                                             <td style="text-align:right;">@obj.dayRent.ToString("#,##0.00")</td>
                                                             <td style="text-align:right;">@obj.sqRent.ToString("#,##0.00")</td>
                                                             <td style="text-align:right;">@obj.vacdays.ToString("#,##0")</td>
@@ -346,44 +390,45 @@
                                                             <td style="text-align:right;">@obj.vacLoss.ToString("#,##0.00")</td>
                                                             <td style="text-align:right;">@obj.UnAm_Amt.ToString("#,##0.00")</td>
                                                         </tr>
-                                            }
-                                            else
-                                            {
-                        <tr align="center">
-                            <td style="display:none">@obj.footer</td>
-                            <td style="text-align:left;">@obj.PropertyGrp</td>
-                            <td style="text-align:left;">@obj.Property</td>
-                            <td style="text-align:left;">@obj.TCNo</td>
-                            <td style="text-align:left;">@obj.Unit</td>
-                            <td style="text-align:left;">@obj.UnitType</td>
-                            <td style="text-align:left;">@obj.Usage</td>
-                            <td style="text-align:right;">@obj.Sqft.ToString("#,##0.00")</td>
-                            <td style="text-align:left;">@obj.FromDate</td>
-                            <td style="text-align:left;">@obj.ToDate</td>
-                            <td style="text-align:right;">@obj.AccPrdDays.ToString("#,##0")</td>
-                            <td style="text-align:right;">@obj.ContractAmt.ToString("#,##0.00")</td>
-                            <td style="text-align:left;">@obj.AmFrom</td>
-                            <td style="text-align:left;">@obj.AmTo</td>
-                            <td style="text-align:right;">@obj.AmDays.ToString("#,##0")</td>
-                            <td style="text-align:right;">@obj.AmAmt.ToString("#,##0.00")</td>
-                            <td style="text-align:left;">@obj.Status</td>
-                            <td style="text-align:right;">@obj.dayRent.ToString("#,##0.00")</td>
-                            <td style="text-align:right;">@obj.sqRent.ToString("#,##0.00")</td>
-                            <td style="text-align:right;">@obj.vacdays.ToString("#,##0")</td>
-                            <td style="text-align:right;">@obj.AnnualRent.ToString("#,##0.00")</td>
-                            <td style="text-align:right;">@obj.vacLoss.ToString("#,##0.00")</td>
-                            <td style="text-align:right;">@obj.UnAm_Amt.ToString("#,##0.00")</td>
-                        </tr>
-                                                }
-                                            }
                                         }
+                        <tr align="center" style="font-weight:bolder;color:red">
+                            <td style="text-align:left;">Total</td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:right;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:right;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:right;">@sd</td>
+                            <td style="text-align:right;">@ca</td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:right;">@amd</td>
+                            <td style="text-align:right;">@ama</td>
+                            <td style="text-align:right;">@sav</td>
+                            <td style="text-align:right;">@tav</td>
+                            <td style="text-align:right;">@uer</td>
+                            <td style="text-align:left;"></td>
+                            <td style="text-align:right;">@dr</td>
+                            <td style="text-align:right;">@sqr</td>
+                            <td style="text-align:right;">@vd</td>
+                            <td style="text-align:right;">@ar</td>
+                            <td style="text-align:right;">@vl</td>
+                            <td style="text-align:right;">@ua</td>
+                        </tr>
                                     }
-                                    catch (Exception ex)
-                                    {
-                                        //alert(ex.Message);
-                                    }
-
                                 }
+                                catch (Exception ex)
+                                {
+                                    //alert(ex.Message);
+                                }
+
+                            }
                         </tbody>
                     </table>
                 </div>

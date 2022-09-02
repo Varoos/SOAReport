@@ -74,6 +74,14 @@ namespace SOAReport.Controllers
             string JSONString = JsonConvert.SerializeObject(ds.Tables[0]);
             return Json(JSONString, JsonRequestBehavior.AllowGet);
         }
+        public ActionResult getTenantslist3(int cid, string searchtext)
+        {
+            string retrievequery = string.Format($@"exec pCore_CommonSp @Operation=SearchAccount2, @p2='{searchtext}'");
+            List<SelectListItem> containers = new List<SelectListItem>();
+            DataSet ds = DBClass.GetData(retrievequery, cid, ref errors1);
+            string JSONString = JsonConvert.SerializeObject(ds.Tables[0]);
+            return Json(JSONString, JsonRequestBehavior.AllowGet);
+        }
         public JsonResult TenantSelectionChange(int cid, int TenantId)
         {
             try
@@ -1208,7 +1216,7 @@ namespace SOAReport.Controllers
                     {
                         DBClass.SetLog("Getting Report View. OccupanyReport DataSet Table count >0 ");
                         List<OccupancyList> listobj = new List<OccupancyList>();
-                        if (ds1.Tables[0].Rows.Count > 1)
+                        if (ds1.Tables[0].Rows.Count > 0)
                         {
                             foreach (DataRow dr1 in ds1.Tables[0].Rows)
                             {
@@ -1236,7 +1244,12 @@ namespace SOAReport.Controllers
                                     AnnualRent = Convert.ToDecimal(dr1["AnnualRent"].ToString()),
                                     vacLoss = Convert.ToDecimal(dr1["rentloss"].ToString()),
                                     UnAm_Amt = Convert.ToDecimal(dr1["UnAm_rent"].ToString()),
-                                    footer = Convert.ToInt32(dr1["footer"].ToString()),
+                                    StayedDays = Convert.ToInt32(dr1["StayedDays"].ToString()),
+                                    StayedAmortizedValue = Convert.ToDecimal(dr1["StayedAmortizedValue"].ToString()),
+                                    TotalAmortizedValue = Convert.ToDecimal(dr1["TotalAmortizedValue"].ToString()),
+                                    Unearnedremaining = Convert.ToDecimal(dr1["Unearnedremaining"].ToString()),
+                                    TCStartDate = dr1["TCStartDate"].ToString(),
+                                    TCEndDate = dr1["TCEndDate"].ToString(),
                                 });
                             }
                             _cls._list = listobj;
@@ -1297,11 +1310,17 @@ namespace SOAReport.Controllers
             data.Columns.Add("Accounting Period Run From", typeof(string));
             data.Columns.Add("Accounting Period Run To", typeof(string));
             data.Columns.Add("Accounting Period Days", typeof(int));
+            data.Columns.Add("TC Start Date", typeof(string));
+            data.Columns.Add("TC End Date", typeof(string));
+            data.Columns.Add("No of Days Stayed", typeof(int));
             data.Columns.Add("Contract Value (tc no value)", typeof(decimal));
             data.Columns.Add("Amortisation From( tc no start dt)", typeof(string));
             data.Columns.Add("Amortisation To(tc termination dt)", typeof(string));
             data.Columns.Add("Amortisation Days", typeof(int));
             data.Columns.Add("Amortised Rent Amount", typeof(decimal));
+            data.Columns.Add("Stayed Amortized Value", typeof(decimal));
+            data.Columns.Add("Total Amortized Value", typeof(decimal));
+            //data.Columns.Add("Unearned Remaining", typeof(decimal));
             data.Columns.Add("Status (Leased / Not-leased) for the period", typeof(string));
             data.Columns.Add("Rent Per Day", typeof(decimal));
             data.Columns.Add("Rent Per Sq Ft Per Day", typeof(decimal));
@@ -1320,7 +1339,7 @@ namespace SOAReport.Controllers
 
 
 
-                var wsReportNameHeaderRange = ws.Range(ws.Cell(1, 2), ws.Cell(1, 23));
+                var wsReportNameHeaderRange = ws.Range(ws.Cell(1, 2), ws.Cell(1, 29));
                 wsReportNameHeaderRange.Style.Font.Bold = true;
                 wsReportNameHeaderRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
                 wsReportNameHeaderRange.Style.Fill.BackgroundColor = XLColor.Yellow;
@@ -1359,7 +1378,7 @@ namespace SOAReport.Controllers
                 ws.Range(ws.Cell(r, 19), ws.Cell(r, 23)).Merge().Value = _head.SqftTo;
 
 
-                var TableRange = ws.Range(ws.Cell(3, 2), ws.Cell(r, 23));
+                var TableRange = ws.Range(ws.Cell(3, 2), ws.Cell(r, 29));
                 TableRange.Style.Fill.BackgroundColor = XLColor.White;
                 TableRange.Style.Font.Bold = true;
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
@@ -1388,11 +1407,17 @@ namespace SOAReport.Controllers
                     ws.Cell(r, cell++).Value = "Accounting Period Run From";
                     ws.Cell(r, cell++).Value = "Accounting Period Run To";
                     ws.Cell(r, cell++).Value = "Accounting Period Days";
+                    ws.Cell(r, cell++).Value = "TC Start Date";
+                    ws.Cell(r, cell++).Value = "TC End Date";
+                    ws.Cell(r, cell++).Value = "No of Days Stayed";
                     ws.Cell(r, cell++).Value = "Contract Value (tc no value)";
                     ws.Cell(r, cell++).Value = "Amortisation From( tc no start dt)";
                     ws.Cell(r, cell++).Value = "Amortisation To(tc termination dt)";
                     ws.Cell(r, cell++).Value = "Amortisation Days";
                     ws.Cell(r, cell++).Value = "Amortised Rent Amount";
+                    ws.Cell(r, cell++).Value = "Stayed Amortized Value";
+                    //ws.Cell(r, cell++).Value = "Total Amortized Value";
+                    //ws.Cell(r, cell++).Value = "Unearned Remaining";
                     ws.Cell(r, cell++).Value = "Status (Leased / Not-leased) for the period";
                     ws.Cell(r, cell++).Value = "Rent Per Day";
                     ws.Cell(r, cell++).Value = "Rent Per Sq Ft Per Day";
@@ -1402,7 +1427,7 @@ namespace SOAReport.Controllers
                     ws.Cell(r, cell++).Value = "Unamortised Rent Amount as on accounting period end";
                     #endregion
                 }
-                TableRange = ws.Range(ws.Cell(r, 2), ws.Cell(r,23));
+                TableRange = ws.Range(ws.Cell(r, 2), ws.Cell(r,29));
                 TableRange.Style.Font.FontColor = XLColor.White;
                 TableRange.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 115, 170);
                 TableRange.Style.Font.Bold = true;
@@ -1411,25 +1436,57 @@ namespace SOAReport.Controllers
                 int c = 2;
 
                 #region TableLoop
+                decimal ca = 0;
+                int amd = 0;
+                decimal ama = 0;
+                decimal dr = 0;
+                decimal sqr = 0;
+                decimal vd = 0;
+                decimal ar = 0;
+                decimal vl = 0;
+                decimal ua = 0;
+                int sd = 0;
+                decimal sav = 0;
+                decimal tav = 0;
+                decimal uer = 0;
                 foreach (var obj in _list)
                 {
                     c = 2;
                     r++;
+                    ca = ca + obj.ContractAmt;
+                    amd = amd + obj.AmDays;
+                    ama = ama + obj.AmAmt;
+                    dr = dr + obj.dayRent;
+                    sqr = sqr + obj.sqRent;
+                    vd = vd + obj.vacdays;
+                    ar = ar + obj.AnnualRent;
+                    vl = vl + obj.vacLoss;
+                    ua = ua + obj.UnAm_Amt;
+                    sd = sd + obj.StayedDays;
+                    sav = sav + obj.StayedAmortizedValue;
+                    tav = tav + obj.TotalAmortizedValue;
+                    uer = uer + obj.Unearnedremaining;
                     ws.Cell(r, c++).Value = obj.PropertyGrp;
                     ws.Cell(r, c++).Value = obj.Property;
                     ws.Cell(r, c++).Value = obj.TCNo;
                     ws.Cell(r, c++).Value = obj.Unit;
                     ws.Cell(r, c++).Value = obj.UnitType;
                     ws.Cell(r, c++).Value = obj.Usage;
-                    ws.Cell(r, c++).Value = obj.footer==1?"": obj.Sqft.ToString("N", new CultureInfo("en-US"));
-                    ws.Cell(r, c++).Value = obj.FromDate;
-                    ws.Cell(r, c++).Value = obj.ToDate;
-                    ws.Cell(r, c++).Value = obj.footer == 1 ? "" : obj.AccPrdDays.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = obj.Sqft.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = "'" + obj.FromDate;
+                    ws.Cell(r, c++).Value = "'"+obj.ToDate;
+                    ws.Cell(r, c++).Value = obj.AccPrdDays.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = "'" + obj.TCStartDate;
+                    ws.Cell(r, c++).Value = "'" + obj.TCEndDate;
+                    ws.Cell(r, c++).Value = obj.StayedDays.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.ContractAmt.ToString("N", new CultureInfo("en-US"));
-                    ws.Cell(r, c++).Value = obj.AmFrom;
-                    ws.Cell(r, c++).Value = obj.AmTo;
+                    ws.Cell(r, c++).Value = "'" + obj.AmFrom;
+                    ws.Cell(r, c++).Value = "'" + obj.AmTo;
                     ws.Cell(r, c++).Value = obj.AmDays.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.AmAmt.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = obj.StayedAmortizedValue.ToString("N", new CultureInfo("en-US"));
+                    //ws.Cell(r, c++).Value = obj.TotalAmortizedValue.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = obj.Unearnedremaining.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.Status;
                     ws.Cell(r, c++).Value = obj.dayRent.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.sqRent.ToString("N", new CultureInfo("en-US"));
@@ -1438,10 +1495,39 @@ namespace SOAReport.Controllers
                     ws.Cell(r, c++).Value = obj.vacLoss.ToString("N", new CultureInfo("en-US"));
                     ws.Cell(r, c++).Value = obj.UnAm_Amt.ToString("N", new CultureInfo("en-US"));
                 }
-
+                c = 2;
+                r = r + 1;
+                ws.Cell(r, c++).Value ="Total";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = sd;
+                ws.Cell(r, c++).Value = ca;
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = amd;
+                ws.Cell(r, c++).Value = ama;
+                ws.Cell(r, c++).Value = sav;
+                ws.Cell(r, c++).Value = tav;
+                ws.Cell(r, c++).Value = uer;
+                ws.Cell(r, c++).Value = "";
+                ws.Cell(r, c++).Value = dr;
+                ws.Cell(r, c++).Value = sqr;
+                ws.Cell(r, c++).Value = vd;
+                ws.Cell(r, c++).Value = ar;
+                ws.Cell(r, c++).Value = vl;
+                ws.Cell(r, c++).Value = ua;
                 #endregion
 
-                TableRange = ws.Range(ws.Cell(10, 2), ws.Cell(r, 23));
+                TableRange = ws.Range(ws.Cell(10, 2), ws.Cell(r, 29));
                 TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
                 TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
@@ -1450,17 +1536,17 @@ namespace SOAReport.Controllers
                 ws.Range(ws.Cell(10, 8), ws.Cell(r, 8)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
                 ws.Range(ws.Cell(10, 11), ws.Cell(r, 11)).Style.NumberFormat.Format = "0";
                 ws.Range(ws.Cell(10, 11), ws.Cell(r, 11)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                ws.Range(ws.Cell(10, 12), ws.Cell(r, 12)).Style.NumberFormat.Format = "0.00";
-                ws.Range(ws.Cell(10, 12), ws.Cell(r, 12)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                ws.Range(ws.Cell(10, 15), ws.Cell(r, 15)).Style.NumberFormat.Format = "0";
-                ws.Range(ws.Cell(10, 15), ws.Cell(r, 15)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                ws.Range(ws.Cell(10, 16), ws.Cell(r, 16)).Style.NumberFormat.Format = "0.00";
-                ws.Range(ws.Cell(10, 16), ws.Cell(r, 16)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                ws.Range(ws.Cell(10, 18), ws.Cell(r, 23)).Style.NumberFormat.Format = "0.00";
-                ws.Range(ws.Cell(10, 18), ws.Cell(r, 23)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
-                ws.Range(ws.Cell(r, 2), ws.Cell(r, 23)).Style.Font.FontColor = XLColor.FromArgb(255, 51, 51);
-                ws.Range(ws.Cell(r, 2), ws.Cell(r, 23)).Style.Font.Bold = true;
-                ws.Range(ws.Cell(r, 2), ws.Cell(r, 23)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(10, 14), ws.Cell(r, 14)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(10, 15), ws.Cell(r, 15)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 14), ws.Cell(r, 15)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(10, 18), ws.Cell(r, 18)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(10, 19), ws.Cell(r, 22)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 18), ws.Cell(r, 22)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(10, 24), ws.Cell(r, 29)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(10, 26), ws.Cell(r, 26)).Style.NumberFormat.Format = "0";
+                ws.Range(ws.Cell(10, 24), ws.Cell(r, 29)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 29)).Style.Font.FontColor = XLColor.FromArgb(255, 51, 51);
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 29)).Style.Font.Bold = true;
                 ws.Columns("A:BZ").AdjustToContents();
 
                 using (MemoryStream stream = new MemoryStream())
@@ -2549,6 +2635,349 @@ namespace SOAReport.Controllers
                 {
                     wb.SaveAs(stream);
                     return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "LeaseRentalSummaryReport" + "_" + DateTime.Now.ToString("dd-MM-yyyy") + ".xlsx");
+                }
+            }
+        }
+        public ActionResult LandLordSOA_Index(int CompanyId)
+        {
+            try
+            {
+                ViewBag.CompId = CompanyId;
+                DBClass.SetLog("Entered to external Module with CompanyId = " + CompanyId);
+                return View();
+            }
+            catch (Exception ex)
+            {
+                DBClass.SetLog("INdex. Exception = " + ex.Message);
+                return null;
+            }
+        }
+        public ActionResult LandLordReport2(int CompanyId, string ReportDate, string Tenant)
+        {
+            try
+            {
+                DBClass.SetLog("Getting Report View. CompanyId = " + CompanyId.ToString() + " ReportDate = " + ReportDate + " Tenant = " + Tenant);
+                LandLordSOA _reportData = new LandLordSOA();
+                string retrievequery = string.Format($@"exec LandLordSOA @TenantCode='{Tenant}',@ReportDate='{ReportDate}' ");
+                DBClass.SetLog("retrievequery = " + retrievequery);
+                DataSet ds = DBClass.GetData(retrievequery, CompanyId, ref errors1);
+                if (ds != null)
+                {
+                    DBClass.SetLog("Getting Report View. ds DataSet is not null");
+                    if (ds.Tables[0].Rows.Count > 0)
+                    {
+                        DBClass.SetLog("Getting Report View. ds DataSet Table count >0");
+                        DataRow dr = ds.Tables[0].Rows[0];
+                        LLSOA_Header search = new LLSOA_Header();
+                        DBClass.SetLog("Getting Report View. GetReportData header data is ready");
+                        List<LLSOA_List> listobj = new List<LLSOA_List>();
+                        foreach (DataRow dr1 in ds.Tables[0].Rows)
+                        {
+                            listobj.Add(new LLSOA_List
+                            {
+                                DocDate = dr1["Date"].ToString(),
+                                DocNo = dr1["Voucher"].ToString(),
+                                Desc = dr1["Remarks"].ToString(),
+                                Account = dr1["Account"].ToString(),
+                                Debit = Convert.ToDecimal(dr1["Debit"].ToString()),
+                                Credit = Convert.ToDecimal(dr1["Credit"].ToString()),
+                                balance = Convert.ToDecimal(dr1["Balance"].ToString()),
+                                balance2 = Convert.ToDecimal(dr1["Balance2"].ToString()),
+                            });
+                        }
+                        search.Tenant = dr["Tenant"].ToString();
+                        search.TenantCode = dr["TenantsCode"].ToString();
+                        search.Address = dr["Address"].ToString();
+                        search.Mobile = dr["Mobile"].ToString();
+                        search.Email = dr["Email"].ToString();
+                        search.SecDep = Convert.ToDecimal(dr["SecDep"].ToString());
+                        search.OpBal = Convert.ToDecimal(dr["OpBal"].ToString());
+                        search.SecDep2 = Convert.ToDecimal(dr["SecDep2"].ToString());
+                        search.OpBal2 = Convert.ToDecimal(dr["OpBal2"].ToString());
+                        search.TotalDebit = Convert.ToDecimal(dr["TotalDr"].ToString());
+                        search.TotalCredit = Convert.ToDecimal(dr["TotalCr"].ToString());
+                        search.RentBal = Convert.ToDecimal(dr["RentBal"].ToString());
+                        search.ContFund = Convert.ToDecimal(dr["ContFund"].ToString());
+                        search.AccBal = Convert.ToDecimal(dr["AccBal"].ToString());
+                        search.RentBal2 = Convert.ToDecimal(dr["RentBal2"].ToString());
+                        search.ContFund2 = Convert.ToDecimal(dr["ContFund2"].ToString());
+                        search.AccBal2 = Convert.ToDecimal(dr["AccBal2"].ToString());
+                        search.CompanyId = CompanyId;
+                        search.ReportDate = dr["ReportDate"].ToString();
+                        _reportData._header = search;
+                        _reportData._listData = listobj;
+                        DBClass.SetLog("Getting Report View. GetReportData body data is ready");
+                    }
+                }
+                Session["LLSOAData"] = _reportData;
+                if (_reportData == null)
+                {
+                    return Json("No Data", JsonRequestBehavior.AllowGet);
+                }
+                else if (_reportData._header == null)
+                {
+                    return Json("No Data", JsonRequestBehavior.AllowGet);
+                }
+                else
+                {
+                    if (_reportData._listData.Count == 0)
+                    {
+                        return Json("No Data", JsonRequestBehavior.AllowGet);
+                    }
+                    else
+                    {
+                        return Json("Success", JsonRequestBehavior.AllowGet);
+                    }
+                }
+                DBClass.SetLog("Getting Report View. SOA Report body data is ready");
+            }
+            catch (Exception ex)
+            {
+                DBClass.SetLog("Getting Report View. EXCEPTION = " + ex.Message);
+                return null;
+            }
+        }
+        public ActionResult LandLordReport()
+        {
+            LandLordSOA _data = (LandLordSOA)Session["LLSOAData"];
+            return View(_data);
+        }
+        public FileResult LandLordSOAExcel()
+        {
+            LandLordSOA _data = (LandLordSOA)Session["LLSOAData"];
+            LLSOA_Header _head = new LLSOA_Header();
+            _head = _data._header;
+            List<LLSOA_List> _list = new List<LLSOA_List>();
+            _list = _data._listData;
+            System.Data.DataTable data = new System.Data.DataTable("Land Lord SOA Report");
+            #region DataColumns
+            data.Columns.Add("DocDate", typeof(Date));
+            data.Columns.Add("DocNo", typeof(string));
+            data.Columns.Add("Desc", typeof(string));
+            data.Columns.Add("Debit", typeof(decimal));
+            data.Columns.Add("Credit", typeof(decimal));
+            data.Columns.Add("aed", typeof(string));
+            data.Columns.Add("balance", typeof(decimal));
+            data.Columns.Add("balance2", typeof(decimal));
+            #endregion
+            using (XLWorkbook wb = new XLWorkbook())
+            {
+                var ws = wb.Worksheets.Add("Land Lord SOA Report");
+                var dataTable = data;
+
+
+
+                var wsReportNameHeaderRange = ws.Range(ws.Cell(1, 2), ws.Cell(1, 8));
+                wsReportNameHeaderRange.Style.Font.Bold = true;
+                wsReportNameHeaderRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                wsReportNameHeaderRange.Style.Fill.BackgroundColor = XLColor.Yellow;
+                wsReportNameHeaderRange.Merge();
+                wsReportNameHeaderRange.Value = "SOA Report";
+
+                int r = 3;
+                int cell = 2;
+
+                ws.Cell(r, 2).Value = "";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = "";
+                ws.Cell(r, 6).Value = "Date : ";
+                ws.Range(ws.Cell(r, 7), ws.Cell(r, 8)).Merge().Value = _head.ReportDate;
+
+                r = 4;
+                ws.Cell(r, 2).Value = "";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = "";
+                ws.Cell(r, 6).Value = "Statement : ";
+                ws.Range(ws.Cell(r, 7), ws.Cell(r, 8)).Merge().Value = "Land Lord SOA";
+
+                r = 5;
+                ws.Cell(r, 2).Value = "";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = "";
+                ws.Cell(r, 6).Value = "Customer ID : ";
+                ws.Range(ws.Cell(r, 7), ws.Cell(r, 8)).Merge().Value = _head.TenantCode;
+
+                var TableRange = ws.Range(ws.Cell(3, 2), ws.Cell(r, 8));
+                TableRange.Style.Fill.BackgroundColor = XLColor.White;
+                TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+
+                r = 7;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 4)).Merge().Value = "Landlord Account";
+                ws.Range(ws.Cell(r, 6), ws.Cell(r, 7)).Merge().Value = "Account Summary";
+
+                r = 8;
+                ws.Cell(r, 2).Value = "Name";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = _head.Tenant;
+                ws.Cell(r, 6).Value = "Previous Balance";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.OpBal + " " + (_head.OpBal2 < 0 ? "Cr" : _head.OpBal2 > 0?"Dr":"");
+
+                r = 9;
+                ws.Cell(r, 2).Value = "Address";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = _head.Address;
+                ws.Cell(r, 6).Value = "Credits";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.TotalCredit;
+
+                r = 10;
+                ws.Cell(r, 2).Value = "Mobile";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = _head.Mobile;
+                ws.Cell(r, 6).Value = "Debit";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.TotalDebit;
+
+                r = 11;
+                ws.Cell(r, 2).Value = "Email";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = _head.Email;
+                ws.Cell(r, 6).Value = "Rent Balance";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.RentBal +" "+ (_head.RentBal2 < 0 ? "Cr" : _head.RentBal2 > 0 ? "Dr":"");
+
+                r = 12;
+                ws.Cell(r, 2).Value = "Rent";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value ="";
+                ws.Cell(r, 6).Value = "Contingency Fund";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.ContFund + " " + (_head.ContFund2 < 0 ? "Cr" : _head.ContFund2 > 0 ? "Dr":"");
+
+                r = 13;
+                ws.Cell(r, 2).Value = "Payment Term";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = "";
+                ws.Cell(r, 6).Value = "Security Deposit";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.SecDep + " " + (_head.SecDep2 < 0 ? "Cr" : _head.SecDep2 > 0 ? "Dr":"");
+
+                r = 14;
+                ws.Cell(r, 2).Value = "";
+                ws.Range(ws.Cell(r, 3), ws.Cell(r, 4)).Merge().Value = "";
+                ws.Cell(r, 6).Value = "Account Balance";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.AccBal + " "+(_head.AccBal2 < 0 ? "Cr": _head.AccBal2 > 0 ? "Dr":"");
+
+                TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(r, 8));
+                TableRange.Style.Fill.BackgroundColor = XLColor.White;
+                TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+
+                ws.Range(ws.Cell(8,8), ws.Cell(14, 8)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(8, 8), ws.Cell(14, 8)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+
+                TableRange = ws.Range(ws.Cell(7, 2), ws.Cell(7, 8));
+                TableRange.Style.Font.Bold = true;
+                TableRange.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 115, 170);
+                TableRange.Style.Font.FontColor = XLColor.White;
+
+                TableRange = ws.Range(ws.Cell(11, 6), ws.Cell(11, 8));
+                TableRange.Style.Font.Bold = true;
+                TableRange.Style.Fill.BackgroundColor = XLColor.BeauBlue;
+                TableRange.Style.Font.FontColor = XLColor.Black;
+
+                TableRange = ws.Range(ws.Cell(14, 6), ws.Cell(14, 8));
+                TableRange.Style.Font.Bold = true;
+                TableRange.Style.Fill.BackgroundColor = XLColor.BeauBlue;
+                TableRange.Style.Font.FontColor = XLColor.Black;
+
+
+                r = 16;
+                cell = 2;
+                for (int i = 1; i < data.Columns.Count; i++)
+                {
+                    cell = 2;
+                    #region Headers
+                    ws.Cell(r, cell++).Value = "Date";
+                    ws.Cell(r, cell++).Value = "Doc No";
+                    ws.Cell(r, cell++).Value = "Description";
+                    ws.Cell(r, cell++).Value = "Debit";
+                    ws.Cell(r, cell++).Value = "Credit";
+                    ws.Range(ws.Cell(r, 7), ws.Cell(r, 8)).Merge().Value = "Account Balance";
+                    #endregion
+                }
+                TableRange = ws.Range(ws.Cell(r, 2), ws.Cell(r, 8));
+                TableRange.Style.Font.FontColor = XLColor.White;
+                TableRange.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 115, 170);
+                TableRange.Style.Font.Bold = true;
+                TableRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                int c = 2;
+
+                #region TableLoop
+                foreach (var obj in _list)
+                {
+                    c = 2;
+                    r++;
+                    ws.Cell(r, c++).Value = "'"+obj.DocDate;
+                    ws.Cell(r, c++).Value = obj.DocNo;
+                    ws.Cell(r, c++).Value = obj.Desc;
+                    ws.Cell(r, c++).Value = obj.Debit.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = obj.Credit.ToString("N", new CultureInfo("en-US"));
+                    ws.Cell(r, c++).Value = "AED";
+                    ws.Cell(r, c++).Value = obj.balance.ToString("N", new CultureInfo("en-US")) + " " + (obj.balance2 < 0 ? "Cr" : obj.balance2 > 0 ? "Dr":"");
+                }
+                c = 2;
+                r = r + 1;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 8)).Merge().Value = "";
+
+                TableRange = ws.Range(ws.Cell(16, 2), ws.Cell(r, 8));
+                TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                ws.Range(ws.Cell(17, 8), ws.Cell(r, 8)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(17, 8), ws.Cell(r, 8)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(17, 5), ws.Cell(r, 6)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(17, 5), ws.Cell(r, 6)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+
+                int fr;
+                r = r + 1;
+                fr = r;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 6)).Merge().Value = "Rent Balance";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.RentBal.ToString("N", new CultureInfo("en-US")) +" "+ (_head.RentBal2 < 0 ? "Cr" : _head.RentBal2 > 0 ? "Dr":"");
+
+                TableRange = ws.Range(ws.Cell(r, 2), ws.Cell(r, 8));
+                TableRange.Style.Font.FontColor = XLColor.White;
+                TableRange.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 115, 170);
+                TableRange.Style.Font.Bold = true;
+
+                r = r + 1;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 8)).Merge().Value = "";
+
+                r = r + 1;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 6)).Merge().Value = "Contingency Fund";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.ContFund.ToString("N", new CultureInfo("en-US")) + " " + (_head.ContFund2 < 0 ? "Cr" : _head.ContFund2 > 0 ? "Dr":"");
+
+                r = r + 1;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 6)).Merge().Value = "Security Deposit";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.SecDep.ToString("N", new CultureInfo("en-US")) + " " + (_head.SecDep2 < 0 ? "Cr" : _head.SecDep2 > 0 ? "Dr":"");
+
+                r = r + 1;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 8)).Merge().Value = "";
+
+                r = r + 1;
+                ws.Range(ws.Cell(r, 2), ws.Cell(r, 6)).Merge().Value = "Account Balance";
+                ws.Cell(r, 7).Value = "AED";
+                ws.Cell(r, 8).Value = _head.AccBal.ToString("N", new CultureInfo("en-US")) + " " + (_head.AccBal2 < 0 ? "Cr" : _head.AccBal2 > 0 ? "Dr" : "");
+
+                TableRange = ws.Range(ws.Cell(r, 2), ws.Cell(r, 8));
+                TableRange.Style.Font.FontColor = XLColor.White;
+                TableRange.Style.Fill.BackgroundColor = XLColor.FromArgb(0, 115, 170);
+                TableRange.Style.Font.Bold = true;
+                #endregion
+
+                TableRange = ws.Range(ws.Cell(16, 2), ws.Cell(r, 8));
+                TableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                TableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                ws.Range(ws.Cell(fr, 2), ws.Cell(r, 6)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(fr, 8), ws.Cell(r, 8)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(fr, 8), ws.Cell(r, 8)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Range(ws.Cell(fr, 5), ws.Cell(r, 6)).Style.NumberFormat.Format = "0.00";
+                ws.Range(ws.Cell(fr, 5), ws.Cell(r, 6)).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
+                ws.Columns("A:Z").AdjustToContents();
+
+                using (MemoryStream stream = new MemoryStream())
+                {
+                    wb.SaveAs(stream);
+                    return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "LLSOAReport" + "_" + DateTime.Now.ToString("dd-MM-yyyy") + ".xlsx");
                 }
             }
         }

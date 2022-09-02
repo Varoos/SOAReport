@@ -275,30 +275,82 @@
 
                                     if (list != null)
                                     {
+                                        decimal ar = 0;
+                                        decimal tld = 0;
+                                        decimal tlr = 0;
+                                        decimal jan = 0;
+                                        decimal feb = 0;
+                                        decimal mar = 0;
+                                        decimal apr = 0;
+                                        decimal may = 0;
+                                        decimal jun = 0;
+                                        decimal jul = 0;
+                                        decimal aug = 0;
+                                        decimal sep = 0;
+                                        decimal oct = 0;
+                                        decimal nov = 0;
+                                        decimal dec = 0;
+
                                         foreach (var obj in list)
                                         {
-                                                        <tr align="center">
-                                                            <td style="text-align:center;">@obj.Property</td>
-                                                            <td style="text-align:center;">@obj.Unit</td>
-                                                            <td style="text-align:center;">@obj.AnnualRent.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.LostStartDt</td>
-                                                            <td style="text-align:center;">@obj.LostEndDt</td>
-                                                            <td style="text-align:center;">@obj.TotLostDays.ToString("#,##0")</td>
-                                                            <td style="text-align:center;">@obj.TotLostRev.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Jan.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Feb.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Mar.ToString("#,##0.00")</td>
-                                                            <td style="text-align:right;">@obj.Apr.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.May.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Jun.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Jul.ToString("#,##0.00")</td>
-                                                            <td style="text-align:right;">@obj.Aug.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Sep.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Oct.ToString("#,##0.00")</td>
-                                                            <td style="text-align:center;">@obj.Nov.ToString("#,##0.00")</td>
-                                                            <td style="text-align:right;">@obj.Dec.ToString("#,##0.00")</td>
-                                                        </tr>
+                                            ar = ar + obj.AnnualRent;
+                                            tld = tld + obj.TotLostDays;
+                                            tlr = tlr + obj.TotLostRev;
+                                            jan = jan + obj.Jan;
+                                            feb = feb + obj.Feb;
+                                            mar = mar + obj.Mar;
+                                            apr = apr + obj.Apr;
+                                            may = may + obj.May;
+                                            jun = jun + obj.Jun;
+                                            jul = jul + obj.Jul;
+                                            aug = aug + obj.Aug;
+                                            sep = sep + obj.Sep;
+                                            oct = oct + obj.Oct;
+                                            nov = nov + obj.Nov;
+                                            dec = dec + obj.Dec;
+                                            <tr align="center">
+                                                <td style="text-align:left;">@obj.Property</td>
+                                                <td style="text-align:left;">@obj.Unit</td>
+                                                <td style="text-align:right;">@obj.AnnualRent.ToString("#,##0.00")</td>
+                                                <td style="text-align:left;">@obj.LostStartDt</td>
+                                                <td style="text-align:left;">@obj.LostEndDt</td>
+                                                <td style="text-align:right;">@obj.TotLostDays.ToString("#,##0")</td>
+                                                <td style="text-align:right;">@obj.TotLostRev.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Jan.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Feb.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Mar.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Apr.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.May.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Jun.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Jul.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Aug.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Sep.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Oct.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Nov.ToString("#,##0.00")</td>
+                                                <td style="text-align:right;">@obj.Dec.ToString("#,##0.00")</td>
+                                            </tr>
                                         }
+                                        <tr align="center" style="font-weight:bolder;color:red">
+                                            <td style="text-align:left;">Total</td>
+                                            <td style="text-align:right;"></td>
+                                            <td style="text-align:right;">@ar.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;"></td>
+                                            <td style="text-align:right;"></td>
+                                            <td style="text-align:right;">@tld.ToString("#,##0")</td>
+                                            <td style="text-align:right;">@tlr.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@jan.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@feb.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@mar.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@apr.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@may.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@jun.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@jul.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@aug.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@sep.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@oct.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@nov.ToString("#,##0.00")</td>
+                                            <td style="text-align:right;">@dec.ToString("#,##0.00")</td>
+                                        </tr>
                                     }
                                 }
                                 catch (Exception ex)
@@ -332,7 +384,7 @@
         var path = '@System.Web.Configuration.WebConfigurationManager.AppSettings["IpAddress"]';
         $(document).ready(function() {
             debugger
-            $('#tableData').DataTable();
+            $('#tableData').DataTable({ bSort: false });
             
         });
 </script>
